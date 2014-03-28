@@ -1,4 +1,4 @@
-package net.sf.picard.sam;
+package net.sf.picard.sam.markduplicates;
 
 import net.sf.picard.PicardException;
 import net.sf.picard.cmdline.Option;
@@ -20,7 +20,6 @@ import net.sf.samtools.util.StringUtil;
 import java.io.*;
 import java.util.*;
 
-import static java.lang.Math.log;
 import static java.lang.Math.pow;
 
 /**
@@ -90,7 +89,7 @@ public class EstimateLibraryComplexity extends AbstractDuplicateFindingAlgorithm
     /**
      * Little class to hold the sequence of a pair of reads and tile location information.
      */
-    static class PairedReadSequence implements PhysicalLocation {
+    static class PairedReadSequence implements OpticalDuplicateFinder.PhysicalLocation {
         static int size_in_bytes = 2 + 1 + 4 + 1 + 300; // rough guess at memory footprint
         short readGroup = -1;
         short tile = -1;
@@ -244,7 +243,7 @@ public class EstimateLibraryComplexity extends AbstractDuplicateFindingAlgorithm
                 if (prs == null) {
                     // Make a new paired read object and add RG and physical location information to it
                     prs = new PairedReadSequence();
-                    if (addLocationInformation(rec.getReadName(), prs)) {
+                    if (opticalDuplicateFinder.addLocationInformation(rec.getReadName(), prs)) {
                         final SAMReadGroupRecord rg = rec.getReadGroup();
                         if (rg != null) prs.setReadGroup((short) readGroups.indexOf(rg));
                     }
@@ -340,7 +339,7 @@ public class EstimateLibraryComplexity extends AbstractDuplicateFindingAlgorithm
                             final int duplicateCount = dupes.size();
                             duplicationHisto.increment(duplicateCount);
 
-                            final boolean[] flags = findOpticalDuplicates(dupes, OPTICAL_DUPLICATE_PIXEL_DISTANCE);
+                            final boolean[] flags = opticalDuplicateFinder.findOpticalDuplicates(dupes);
                             for (final boolean b : flags) {
                                 if (b) opticalHisto.increment(duplicateCount);
                             }

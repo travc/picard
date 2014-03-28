@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package net.sf.picard.sam;
+package net.sf.picard.sam.markduplicates;
 
 import net.sf.samtools.util.SortingCollection;
 import net.sf.picard.PicardException;
@@ -29,12 +29,12 @@ import net.sf.picard.PicardException;
 import java.io.*;
 
 /** Coded for ReadEnds that just outputs the primitive fields and reads them back. */
-class ReadEndsCodec implements SortingCollection.Codec<ReadEnds> {
+class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMarkDuplicates> {
     private DataInputStream in;
     private DataOutputStream out;
 
-    public SortingCollection.Codec<ReadEnds> clone() {
-        return new ReadEndsCodec();
+    public SortingCollection.Codec<ReadEndsMarkDuplicates> clone() {
+        return new ReadEndsMarkDuplicatesCodec();
     }
 
     public void setOutputStream(final OutputStream os) { this.out = new DataOutputStream(os); }
@@ -48,7 +48,7 @@ class ReadEndsCodec implements SortingCollection.Codec<ReadEnds> {
         return out;
     }
 
-    public void encode(final ReadEnds read) {
+    public void encode(final ReadEndsMarkDuplicates read) {
         try {
             this.out.writeShort(read.score);
             this.out.writeShort(read.libraryId);
@@ -73,8 +73,8 @@ class ReadEndsCodec implements SortingCollection.Codec<ReadEnds> {
         }
     }
 
-    public ReadEnds decode() {
-        final ReadEnds read = new ReadEnds();
+    public ReadEndsMarkDuplicates decode() {
+        final ReadEndsMarkDuplicates read = new ReadEndsMarkDuplicates();
         try {
             // If the first read results in an EOF we've exhausted the stream
             try { read.score = this.in.readShort(); }

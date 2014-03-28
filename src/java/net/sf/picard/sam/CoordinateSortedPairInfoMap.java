@@ -61,7 +61,7 @@ public class CoordinateSortedPairInfoMap<KEY, REC> implements Iterable<Map.Entry
     // internal state.
     private boolean iterationInProgress = false;
 
-    CoordinateSortedPairInfoMap(int maxOpenFiles, Codec<KEY, REC> elementCodec) {
+    public CoordinateSortedPairInfoMap(int maxOpenFiles, Codec<KEY, REC> elementCodec) {
         this.elementCodec = elementCodec;
         workDir.deleteOnExit();
         outputStreams = new FileAppendStreamLRUCache(maxOpenFiles);
