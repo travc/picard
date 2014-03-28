@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-package net.sf.picard.sam;
+package net.sf.picard.sam.markduplicates;
 
 import net.sf.picard.metrics.MetricBase;
 import net.sf.picard.util.Histogram;

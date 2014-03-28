@@ -267,7 +267,7 @@
             <arg line="-f ${command-line-html-dir}/picard-metric-definitions.shtml"/>
         </javadoc>
     </target>
-
+	
     <target name="package-commands" depends="compile, sam-jar, picard-jar, tribble-jar, variant-jar">
         <delete dir="${command_tmp}"/>
 
@@ -301,7 +301,7 @@
         <package-and-document-command title="CreateSequenceDictionary"       main-class="net.sf.picard.sam.CreateSequenceDictionary"/>
         <package-and-document-command title="DownsampleSam"                  main-class="net.sf.picard.sam.DownsampleSam"/>
         <package-and-document-command title="ExtractIlluminaBarcodes"        main-class="net.sf.picard.illumina.ExtractIlluminaBarcodes"/>
-        <package-and-document-command title="EstimateLibraryComplexity"      main-class="net.sf.picard.sam.EstimateLibraryComplexity"/>
+        <package-and-document-command title="EstimateLibraryComplexity"      main-class="net.sf.picard.sam.markduplicates.EstimateLibraryComplexity"/>
         <package-and-document-command title="FastqToSam"                     main-class="net.sf.picard.sam.FastqToSam"/>
         <package-and-document-command title="FilterSamReads"                 main-class="net.sf.picard.sam.FilterSamReads"/>
         <package-and-document-command title="FixMateInformation"             main-class="net.sf.picard.sam.FixMateInformation"/>
@@ -311,7 +311,8 @@
         <package-and-document-command title="CheckIlluminaDirectory"         main-class="net.sf.picard.illumina.CheckIlluminaDirectory"/>
         <package-and-document-command title="IntervalListTools"              main-class="net.sf.picard.util.IntervalListTools"/>
         <package-and-document-command title="MakeSitesOnlyVcf"               main-class="net.sf.picard.vcf.MakeSitesOnlyVcf"/>
-        <package-and-document-command title="MarkDuplicates"                 main-class="net.sf.picard.sam.MarkDuplicates"/>
+        <package-and-document-command title="MarkDuplicates"                 main-class="net.sf.picard.sam.markduplicates.MarkDuplicates"/>
+        <package-and-document-command title="MarkDuplicatesWithMateCigar"    main-class="net.sf.picard.sam.markduplicates.MarkDuplicatesWithMateCigar"/>
         <package-and-document-command title="MeanQualityByCycle"             main-class="net.sf.picard.analysis.MeanQualityByCycle"/>
         <package-and-document-command title="MergeBamAlignment"              main-class="net.sf.picard.sam.MergeBamAlignment"/>
         <package-and-document-command title="MergeSamFiles"                  main-class="net.sf.picard.sam.MergeSamFiles"/>
