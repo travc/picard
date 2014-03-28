@@ -21,43 +21,50 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package picard.sam;
+package picard.sam.markduplicates;
 
-/** Little struct-like class to hold read pair (and fragment) end data for MarkDuplicates. */
-class ReadEnds implements MarkDuplicates.PhysicalLocation {
-    public static final int SIZE_OF = (1*1) + (2*1) + (4*4) + (8*2) + 2 + 1 + 2 + 2 
-            + 8 + // last 8 == reference overhead
-            13; // This is determined experimentally with JProfiler
+/** Little struct-like class to hold read pair (and fragment) end data for duplicate marking. */
+abstract class ReadEnds implements OpticalDuplicateFinder.PhysicalLocation {
 
     public static final byte F=0, R=1, FF=2, FR=3, RR=4, RF=5;
 
     short libraryId;
-    short score = 0;
     byte orientation;
     int read1Sequence     = -1;
     int read1Coordinate   = -1;
-    long read1IndexInFile = -1;
     int read2Sequence     = -1;
     int read2Coordinate   = -1;
-    long read2IndexInFile = -1;
 
     // Information used to detect optical dupes
     short readGroup = -1;
     short tile = -1;
     short x = -1, y = -1;
 
-
     boolean isPaired() { return this.read2Sequence != -1; }
 
     public short getReadGroup() { return this.readGroup; }
-    public void setReadGroup(short readGroup) { this.readGroup = readGroup; }
+    public void setReadGroup(final short readGroup) { this.readGroup = readGroup; }
 
     public short getTile() { return this.tile; }
-    public void setTile(short tile) { this.tile = tile; }
+    public void setTile(final short tile) { this.tile = tile; }
 
     public short getX() { return this.x; }
-    public void setX(short x) { this.x = x; }
+    public void setX(final short x) { this.x = x; }
 
     public short getY() { return this.y; }
-    public void setY(short y) { this.y = y; }
+    public void setY(final short y) { this.y = y; }
+
+    /**
+     * Returns a single byte that encodes the orientation of the two reads in a pair.
+     */
+    public static byte getOrientationByte(final boolean read1NegativeStrand, final boolean read2NegativeStrand) {
+        if (read1NegativeStrand) {
+            if (read2NegativeStrand)  return ReadEnds.RR;
+            else return ReadEnds.RF;
+        }
+        else {
+            if (read2NegativeStrand)  return ReadEnds.FR;
+            else return ReadEnds.FF;
+        }
+    }
 }

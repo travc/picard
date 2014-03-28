@@ -1,23 +1,21 @@
-package picard.sam.testers;
+package picard.sam.markduplicates;
 
 
+import picard.cmdline.CommandLineProgram;
+import picard.sam.testers.SamFileTester;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.util.TestUtil;
 import org.testng.Assert;
-import picard.cmdline.CommandLineProgram;
-import picard.sam.MarkDuplicates;
 
 import java.io.File;
 
 /**
  * This class is an extension of SamFileTester used to test MarkDuplicates with SAM files generated on the fly.
  */
-public class MarkDuplicatesTester extends SamFileTester {
+abstract public class AbstractMarkDuplicateFindingAlgorithmTester extends SamFileTester {
 
-    private final MarkDuplicates program = new MarkDuplicates();
-
-    public MarkDuplicatesTester() {
+    public AbstractMarkDuplicateFindingAlgorithmTester() {
         super(50, true);
 
         final File metrics = new File(getOutputDir(), "metrics.txt");
@@ -31,6 +29,9 @@ public class MarkDuplicatesTester extends SamFileTester {
             final SAMFileReader reader = new SAMFileReader(getOutput());
             for (final SAMRecord record : reader) {
                 final String key = samRecordToDuplicatesFlagsKey(record);
+                if (!this.duplicateFlags.containsKey(key)) {
+                    System.err.println("DOES NOT CONTAIN KEY: " + key);
+                }
                 Assert.assertTrue(this.duplicateFlags.containsKey(key));
                 final boolean value = this.duplicateFlags.get(key);
                 this.duplicateFlags.remove(key);
@@ -47,8 +48,6 @@ public class MarkDuplicatesTester extends SamFileTester {
     }
 
     @Override
-    protected CommandLineProgram getProgram() {
-        return program;
-    }
+    abstract protected CommandLineProgram getProgram();
 }
 

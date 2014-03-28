@@ -21,43 +21,43 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package picard.sam;
+package picard.sam.markduplicates;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Map from String to ReadEnds object.  RAM-based implementation.
  *
  * @author alecw@broadinstitute.org
  */
-class RAMReadEndsMap implements ReadEndsMap {
+class RAMReadEndsMarkDuplicatesMap implements ReadEndsMarkDuplicatesMap {
 
     /**
      * Index of this list is sequence index.  Value is map from String {read group id:read name} to ReadEnds.
      * When a ReadEnds is put into this container, it is stored according to the sequenceIndex of the mate
      */
-    private List<Map<String, ReadEnds>> mapPerSequence = new ArrayList<Map<String, ReadEnds>>();
+    private List<Map<String, ReadEndsMarkDuplicates>> mapPerSequence = new ArrayList<Map<String, ReadEndsMarkDuplicates>>();
 
-    public ReadEnds remove(int mateSequenceIndex, String key) {
+    public ReadEndsMarkDuplicates remove(int mateSequenceIndex, String key) {
         if (mateSequenceIndex >= mapPerSequence.size()) {
             return null;
         }
         return mapPerSequence.get(mateSequenceIndex).remove(key);
     }
 
-    public void put(int mateSequenceIndex, String key, ReadEnds readEnds) {
+    public void put(int mateSequenceIndex, String key, ReadEndsMarkDuplicates readEnds) {
         while (mateSequenceIndex >= mapPerSequence.size()) {
-            mapPerSequence.add(new HashMap<String, ReadEnds>());
+            mapPerSequence.add(new HashMap<String, ReadEndsMarkDuplicates>());
         }
         mapPerSequence.get(mateSequenceIndex).put(key, readEnds);
     }
 
     public int size() {
         int total = 0;
-        for (Map<String, ReadEnds> map : mapPerSequence) {
+        for (Map<String, ReadEndsMarkDuplicates> map : mapPerSequence) {
             total += map.size();
         }
         return total;
