@@ -485,7 +485,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
             }
         }
 
-        trackOpticalDuplicates(list, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
+        AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(list, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
     }
 
     /**
