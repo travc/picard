@@ -25,6 +25,7 @@
 package net.sf.picard.sam.markduplicates;
 
 import net.sf.picard.PicardException;
+import net.sf.picard.sam.DuplicationMetrics;
 import net.sf.picard.util.Histogram;
 import net.sf.picard.util.PeekableIterator;
 import net.sf.samtools.*;

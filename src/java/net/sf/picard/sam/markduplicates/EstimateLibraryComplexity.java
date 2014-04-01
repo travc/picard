@@ -6,6 +6,7 @@ import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.io.IoUtil;
 import net.sf.picard.metrics.MetricsFile;
+import net.sf.picard.sam.DuplicationMetrics;
 import net.sf.picard.util.Histogram;
 import net.sf.picard.util.Log;
 import net.sf.picard.util.PeekableIterator;

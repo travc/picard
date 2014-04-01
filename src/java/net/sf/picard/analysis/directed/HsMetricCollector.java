@@ -26,7 +26,7 @@ package net.sf.picard.analysis.directed;
 
 import net.sf.picard.analysis.MetricAccumulationLevel;
 import net.sf.picard.reference.ReferenceSequenceFile;
-import net.sf.picard.sam.markduplicates.DuplicationMetrics;
+import net.sf.picard.sam.DuplicationMetrics;
 import net.sf.samtools.*;
 
 import java.io.File;
