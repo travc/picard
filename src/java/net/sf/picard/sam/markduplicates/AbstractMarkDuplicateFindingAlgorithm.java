@@ -6,6 +6,7 @@ import net.sf.picard.cmdline.Option;
 import net.sf.picard.cmdline.StandardOptionDefinitions;
 import net.sf.picard.cmdline.Usage;
 import net.sf.picard.metrics.MetricsFile;
+import net.sf.picard.sam.DuplicationMetrics;
 import net.sf.picard.sam.MergingSamRecordIterator;
 import net.sf.picard.sam.SamFileHeaderMerger;
 import net.sf.picard.util.Histogram;
