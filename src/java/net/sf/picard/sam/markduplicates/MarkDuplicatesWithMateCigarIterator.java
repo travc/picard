@@ -249,7 +249,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             // ignore/except-on paired records with mapped mate and no mate cigar
             if (record.getReadPairedFlag() && !record.getReadUnmappedFlag() &&
-                    !record.getMateUnmappedFlag() && null == record.getMateCigar()) { // paired with one end unmapped and no mate cigar
+                    !record.getMateUnmappedFlag() && null == SAMUtils.getMateCigar(record)) { // paired with one end unmapped and no mate cigar
                 if (this.skipPairsWithNoMateCigar) { // pseudo-silently ignores them
                     // NB: need to add/subtract as chunking/flushing of the toMarkQueue may need to occur
                     this.add(record); // now record will be tracked by alignmentStartSortedBuffer and alignmentStartCounts
@@ -758,7 +758,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             if (this.record.getReadPairedFlag() && !this.record.getReadUnmappedFlag() && !this.record.getMateUnmappedFlag()) {
                 this.read2Sequence = rec.getMateReferenceIndex();
-                this.read2Coordinate = rec.getMateNegativeStrandFlag() ? rec.getMateUnclippedEnd() : rec.getMateUnclippedStart();
+                this.read2Coordinate = rec.getMateNegativeStrandFlag() ? SAMUtils.getMateUnclippedEnd(rec) : SAMUtils.getMateUnclippedStart(rec);
 
                 // set orientation
                 this.orientation = ReadEnds.getOrientationByte(rec.getReadNegativeStrandFlag(), rec.getMateNegativeStrandFlag());

@@ -179,24 +179,34 @@ public class SamPairUtil {
 
     /**
      * Write the mate info for two SAMRecords
+     * @param rec1 the first SAM record
+     * @param rec2 the second SAM record
+     * @param header the SAM file header
+     * @param setMateCigar true if we are to update/create the Mate CIGAR (MC) optional tag, false if we are to clear any mate cigar tag that is present.
      */
-    public static void setMateInfo(final SAMRecord rec1, final SAMRecord rec2, final SAMFileHeader header) {
+    public static void setMateInfo(final SAMRecord rec1, final SAMRecord rec2, final SAMFileHeader header, final boolean setMateCigar) {
         // If neither read is unmapped just set their mate info
         if (!rec1.getReadUnmappedFlag() && !rec2.getReadUnmappedFlag()) {
-
             rec1.setMateReferenceIndex(rec2.getReferenceIndex());
             rec1.setMateAlignmentStart(rec2.getAlignmentStart());
             rec1.setMateNegativeStrandFlag(rec2.getReadNegativeStrandFlag());
             rec1.setMateUnmappedFlag(false);
             rec1.setAttribute(SAMTag.MQ.name(), rec2.getMappingQuality());
-            rec1.setAttribute(SAMTag.MC.name(), rec2.getCigarString());
 
             rec2.setMateReferenceIndex(rec1.getReferenceIndex());
             rec2.setMateAlignmentStart(rec1.getAlignmentStart());
             rec2.setMateNegativeStrandFlag(rec1.getReadNegativeStrandFlag());
             rec2.setMateUnmappedFlag(false);
             rec2.setAttribute(SAMTag.MQ.name(), rec1.getMappingQuality());
-            rec2.setAttribute(SAMTag.MC.name(), rec1.getCigarString());
+
+            if (setMateCigar) {
+                rec1.setAttribute(SAMTag.MC.name(), rec2.getCigarString());
+                rec2.setAttribute(SAMTag.MC.name(), rec1.getCigarString());
+            }
+            else {
+                rec1.setAttribute(SAMTag.MC.name(), null);
+                rec2.setAttribute(SAMTag.MC.name(), null);
+            }
         }
         // Else if they're both unmapped set that straight
         else if (rec1.getReadUnmappedFlag() && rec2.getReadUnmappedFlag()) {
@@ -240,13 +250,24 @@ public class SamPairUtil {
             unmapped.setMateNegativeStrandFlag(mapped.getReadNegativeStrandFlag());
             unmapped.setMateUnmappedFlag(false);
             // For the unmapped read, set it's mateCigar to the mate's Cigar, since the mate must be mapped
-            unmapped.setAttribute(SAMTag.MC.name(), mapped.getCigarString());
+            if (setMateCigar) unmapped.setAttribute(SAMTag.MC.name(), mapped.getCigarString());
+            else unmapped.setAttribute(SAMTag.MC.name(), null);
             unmapped.setInferredInsertSize(0);
         }
 
         final int insertSize = SamPairUtil.computeInsertSize(rec1, rec2);
         rec1.setInferredInsertSize(insertSize);
         rec2.setInferredInsertSize(-insertSize);
+    }
+
+    /**
+     * Write the mate info for two SAMRecords.  This will always clear/remove any mate cigar tag that is present.
+     * @param rec1 the first SAM record
+     * @param rec2 the second SAM record
+     * @param header the SAM file header
+     */
+    public static void setMateInfo(final SAMRecord rec1, final SAMRecord rec2, final SAMFileHeader header) {
+        setMateInfo(rec1, rec2, header, false);
     }
 
     /**
@@ -264,10 +285,27 @@ public class SamPairUtil {
         supplemental.setInferredInsertSize(-matePrimary.getInferredInsertSize());
     }
 
+    /**
+     * This method will clear any mate cigar already present.
+     */
     public static void setProperPairAndMateInfo(final SAMRecord rec1, final SAMRecord rec2,
                                                 final SAMFileHeader header,
                                                 final List<PairOrientation> exepectedOrientations) {
-        setMateInfo(rec1, rec2, header);
+        setProperPairAndMateInfo(rec1, rec2, header, exepectedOrientations, false);
+    }
+
+    /**
+     * @param rec1
+     * @param rec2
+     * @param header
+     * @param exepectedOrientations
+     * @param addMateCigar true if we are to update/create the Mate CIGAR (MC) optional tag, false if we are to clear any mate cigar tag that is present.
+     */
+    public static void setProperPairAndMateInfo(final SAMRecord rec1, final SAMRecord rec2,
+                                                final SAMFileHeader header,
+                                                final List<PairOrientation> exepectedOrientations,
+                                                final boolean addMateCigar) {
+        setMateInfo(rec1, rec2, header, addMateCigar);
         setProperPairFlags(rec1, rec2, exepectedOrientations);
     }
 
