@@ -32,6 +32,8 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
 
     protected final static int DEFAULT_BASE_QUALITY = 10;
 
+    //TODO - Add a test case that includes reads from multiple chromosomes, with some expected duplicates from each chromosome
+
     @Test
     public void testSingleUnmappedFragment() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
