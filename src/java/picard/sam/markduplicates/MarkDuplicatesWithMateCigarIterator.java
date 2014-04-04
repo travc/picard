@@ -33,6 +33,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CollectionUtil;
 
 import java.util.*;
+import java.util.concurrent.SynchronousQueue;
 
 /**
  * This will iterate through a coordinate sorted SAM file (iterator) and either mark or
@@ -328,7 +329,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             // add it to the alignment start counts
             this.add(record); // now record will be tracked by alignmentStartSortedBuffer and alignmentStartCounts
 
-            if (record.isSecondaryOrSupplementary()) { // do not considere these
+            if (record.isSecondaryOrSupplementary()) { // do not consider these
                 // decrement coordinate counts since we will not consider it for marking duplicates
                 this.subtractCount(record.getAlignmentStart());
             }
@@ -385,7 +386,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             final SAMRecord record = this.alignmentStartSortedBuffer.get(0); // get the first in the buffer
             // check if we can proceed
             if (record.getReferenceIndex() < this.referenceIndex ||
-                    (record.getReferenceIndex() == this.referenceIndex && record.getAlignmentStart() <= this.alignmentStart)) {
+                    (record.getReferenceIndex() == this.referenceIndex && record.getAlignmentStart() < this.alignmentStart)) {
                 if (record.getReferenceIndex() == this.referenceIndex) {
                     this.alignmentStartCounts.remove(record.getAlignmentStart()); // remove from counts.
                 }
@@ -453,9 +454,13 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             this.alignmentStartCounts.put(alignmentStart, val - countsToSubtract); // update
             // update the current reference index and alignment start, so we can output records
             for (final SAMRecord record : this.alignmentStartSortedBuffer) { //
+                // We don't need to worry about alignmentStartCounts for reads in the buffer from previous referenceIndexes
+                if (this.referenceIndex != record.getReferenceIndex()) {
+                    continue;
+                }
                 final int start = record.getAlignmentStart();
                 if (!this.alignmentStartCounts.containsKey(start)) {
-                    throw new PicardException("The alignment start " + start + " was not found in the alignment start counts.");
+                    throw new PicardException("The alignment start " + start + " at referenceIndex" + record.getReferenceIndex() + " was not found in the alignment start counts.");
                 }
                 if (0 == this.alignmentStartCounts.get(start)) {
                     this.referenceIndex = record.getReferenceIndex();
