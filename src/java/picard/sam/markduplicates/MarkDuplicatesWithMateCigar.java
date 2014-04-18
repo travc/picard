@@ -58,7 +58,7 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
 
     @Option(doc="The scoring strategy to select which record should be not called a duplicate among comparable"
             + " (potential duplicate) records.", optional = true)
-    public MarkDuplicatesWithMateCigarIterator.ScoringStrategy SCORING_STRATEGY = MarkDuplicatesWithMateCigarIterator.ScoringStrategy.SUM_OF_BASE_QUALITIES;
+    public MarkDuplicatesWithMateCigarIterator.ScoringStrategy SCORING_STRATEGY = MarkDuplicatesWithMateCigarIterator.ScoringStrategy.TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME;
 
     @Option(doc="Skip record pairs with no mate cigar and include them in the output.")
     boolean SKIP_PAIRS_WITH_NO_MATE_CIGAR = true;
@@ -106,6 +106,7 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
                 this.opticalDuplicateFinder,
                 this.MINIMUM_DISTANCE,
                 this.REMOVE_DUPLICATES,
+                this.SCORING_STRATEGY,
                 this.SKIP_PAIRS_WITH_NO_MATE_CIGAR);
 
         // progress logger!

@@ -33,7 +33,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CollectionUtil;
 
 import java.util.*;
-import java.util.concurrent.SynchronousQueue;
 
 /**
  * This will iterate through a coordinate sorted SAM file (iterator) and either mark or
@@ -88,7 +87,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
     private final SAMRecordCoordinateComparator sortComparator = new SAMRecordCoordinateComparator();
 
-    private ScoringStrategy scoringStrategy = ScoringStrategy.SUM_OF_BASE_QUALITIES;
+    private ScoringStrategy scoringStrategy = ScoringStrategy.TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME;
 
     enum ScoringStrategy {
         SUM_OF_BASE_QUALITIES,
@@ -114,6 +113,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                                                final OpticalDuplicateFinder opticalDuplicateFinder,
                                                final int toMarkQueueMinimumDistance,
                                                final boolean removeDuplicates,
+                                               final ScoringStrategy scoringStrategy,
                                                final boolean skipPairsWithNoMateCigar) throws PicardException {
         if (header.getSortOrder() != SAMFileHeader.SortOrder.coordinate) {
             throw new PicardException(this.getClass().getName() + " expects the input to be in coordinate sort order.");
@@ -125,6 +125,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         this.removeDuplicates = removeDuplicates;
         this.skipPairsWithNoMateCigar = skipPairsWithNoMateCigar;
         this.opticalDuplicateFinder = opticalDuplicateFinder;
+        this.scoringStrategy = scoringStrategy;
 
         // set up metrics
         for(final SAMReadGroupRecord readGroup : this.header.getReadGroups()) {
@@ -226,11 +227,14 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         if (!this.backingIterator.hasNext()) { // no more records to read in
 
             // Check if there are any more to mark
-            if (this.toMarkQueue.isEmpty()) return null; // no need to flush, we tried that above, all done
-
-            // force marking duplicates on the remaining records
-            while (!toMarkQueue.isEmpty()) {
-                chunkAndMarkTheDuplicates();
+            if (this.toMarkQueue.isEmpty()) {
+                if (this.alignmentStartSortedBuffer.isEmpty()) return null; // no need to flush; no records in either queue or buffer
+            }
+            else {
+                // force marking duplicates on the remaining records
+                while (!toMarkQueue.isEmpty()) {
+                    chunkAndMarkTheDuplicates();
+                }
             }
 
             // update our coordinate to past the end of the reference
@@ -249,8 +253,24 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             record.setDuplicateReadFlag(false);
 
             // ignore/except-on paired records with mapped mate and no mate cigar
-            if (record.getReadPairedFlag() && !record.getReadUnmappedFlag() &&
-                    !record.getMateUnmappedFlag() && null == record.getMateCigar()) { // paired with one end unmapped and no mate cigar
+            if (record.getReadPairedFlag() &&
+                    !record.getMateUnmappedFlag() && null == SAMUtils.getMateCigar(record)) { // paired with one end unmapped and no mate cigar
+
+                // NB: we are not truly examining these records. Do we want to count them?
+                if (!record.isSecondaryOrSupplementary()) {
+                    // update metrics
+                    final DuplicationMetrics metrics = getMetrics(record);
+                    if (record.getReadUnmappedFlag()) {
+                        ++metrics.UNMAPPED_READS;
+                    }
+                    else if (!record.getReadPairedFlag() || record.getMateUnmappedFlag()) {
+                        ++metrics.UNPAIRED_READS_EXAMINED;
+                    }
+                    else {
+                        ++metrics.READ_PAIRS_EXAMINED;
+                    }
+                }
+
                 if (this.skipPairsWithNoMateCigar) { // pseudo-silently ignores them
                     // NB: need to add/subtract as chunking/flushing of the toMarkQueue may need to occur
                     this.add(record); // now record will be tracked by alignmentStartSortedBuffer and alignmentStartCounts
@@ -266,19 +286,24 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             // check for an unmapped read
             if (record.getReadUnmappedFlag()) {
-                // update metrics
-                final DuplicationMetrics metrics = getMetrics(record);
-                ++metrics.UNMAPPED_READS;
 
                 // unmapped reads at the end of the file!
                 if (-1 == record.getReferenceIndex()) {
                     // when we find unmapped reads with -1 as their reference index, there should be no mapped reads later in the file.
                     if (this.foundUnmappedEOFReads) { // previously found unmapped reads at the end of the file
+                        final SAMRecord unmappedRecord = this.backingIterator.next(); // since we called this.backingIterator.peek()
+
+                        if (!record.isSecondaryOrSupplementary()) {
+                            // update metrics
+                            final DuplicationMetrics metrics = getMetrics(record);
+                            ++metrics.UNMAPPED_READS;
+                        }
+
                         // We should have no more in the queue
                         if (!this.alignmentStartSortedBuffer.isEmpty()) {
                             throw new PicardException("Encountered unmapped reads at the end of the file, but the alignment start buffer was not empty.");
                         }
-                        return this.backingIterator.next(); // since we called this.backingIterator.peek()
+                        return unmappedRecord;
                     }
                     else {
                         this.foundUnmappedEOFReads = true;
@@ -294,6 +319,12 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                         return this.markDuplicatesAndGetTheNextAvailable(); // this should flush the buffer
                     }
                 }
+                if (!record.isSecondaryOrSupplementary()) {
+                    // update metrics
+                    final DuplicationMetrics metrics = getMetrics(record);
+                    ++metrics.UNMAPPED_READS;
+                }
+                // we will check for unmapped reads later so as not to add them to mark queue
             }
 
             if (-1 == this.toMarkQueueMinimumDistance) {
@@ -310,10 +341,19 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             if (!toMarkQueue.isEmpty()) {
                 final ReadEndsMC end = toMarkQueue.peek();
                 if (end.read1Sequence == readEnds.read1Sequence && toMarkQueueMinimumDistance <= end.read1Coordinate - readEnds.read1Coordinate) {
+                    if (checkCigarForSkips(end.getRecord().getCigar())) {
+                        throw new PicardException("Found a record with sufficiently large code length that we may have\n"
+                                + " missed including it in an early duplicate marking iteration.  Alignment contains skipped"
+                                + " reference bases (N's). If this is an\n RNAseq aligned bam, please use MarkDuplicates instead,"
+                                + " as this tool does not support spliced reads.\n Minimum distance set to " + this.toMarkQueueMinimumDistance
+                                + " but " + (end.read1Coordinate - readEnds.read1Coordinate - 1) + " would be required.");
+                    }
+                    else {
                     throw new PicardException("Found a record with sufficiently large clipping that we may have\n"
                             + " missed including it in an early duplicate marking iteration.  Please increase the"
                             + " minimum distance to at least " + (end.read1Coordinate - readEnds.read1Coordinate - 1)
                             + "bp\nto ensure it is considered (was " + this.toMarkQueueMinimumDistance + ").");
+                    }
                 }
             }
 
@@ -329,7 +369,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             // add it to the alignment start counts
             this.add(record); // now record will be tracked by alignmentStartSortedBuffer and alignmentStartCounts
 
-            if (record.isSecondaryOrSupplementary()) { // do not consider these
+            if (record.isSecondaryOrSupplementary() || record.getReadUnmappedFlag()) { // do not consider these
                 // decrement coordinate counts since we will not consider it for marking duplicates
                 this.subtractCount(record.getAlignmentStart());
             }
@@ -368,6 +408,17 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     @Override
     public void close() {
         this.backingIterator.close();
+    }
+
+    /**
+     * Checks a Cigar for the presence of N operators. Reads with skipped bases may be spliced RNAseq reads
+     * @param cigar
+     */
+    private boolean checkCigarForSkips(final Cigar cigar) {
+        final List<CigarElement> elements = cigar.getCigarElements();
+        for (final CigarElement el : elements)
+            if (el.getOperator() == CigarOperator.N) return true;
+        return false;
     }
 
     /** Useful for statistics after the iterator has completed */
@@ -551,7 +602,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         if (isPaired) { // only for pairs
             // optical duplicates
             if (1 < chunk.size()) {
-                List<ReadEndsMC> firstOfPairs = new LinkedList<ReadEndsMC>();
+                final List<ReadEndsMC> firstOfPairs = new LinkedList<ReadEndsMC>();
                 for (final ReadEndsMC end : chunk) {
                     if (end.isPaired() && end.getRecord().getFirstOfPairFlag()) firstOfPairs.add(end);
                 }
@@ -712,6 +763,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     /** We allow different scoring strategies. Larger is better. */
     private int compareRecordsByScoringStrategy(final SAMRecord rec1, final SAMRecord rec2) {
         int cmp = 0;
+        int referenceLength1, referenceLength2;
 
         // always prefer paired over non-paired
         if (rec1.getReadPairedFlag() != rec2.getReadPairedFlag()) return rec1.getReadPairedFlag() ? 1 : -1;
@@ -722,7 +774,13 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 cmp = getSumOfBaseQualities(rec1) - getSumOfBaseQualities(rec2);
                 break;
             case TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME:
-                cmp = rec1.getCigar().getReferenceLength() - rec2.getCigar().getReferenceLength();
+                // get the reference length, both ends if paired
+                referenceLength1 = rec1.getCigar().getReferenceLength();
+                referenceLength2 = rec2.getCigar().getReferenceLength();
+                if (rec1.getReadPairedFlag() && !rec1.getMateUnmappedFlag()) referenceLength1 += SAMUtils.getMateCigar(rec1).getReferenceLength();
+                if (rec2.getReadPairedFlag() && !rec2.getMateUnmappedFlag()) referenceLength2 += SAMUtils.getMateCigar(rec2).getReferenceLength();
+                // compare
+                cmp = referenceLength1 - referenceLength2;
                 if (0 == cmp) cmp = rec1.getMappingQuality() - rec2.getMappingQuality();
                 if (0 == cmp) cmp = rec1.getReadName().compareTo(rec2.getReadName());
                 break;

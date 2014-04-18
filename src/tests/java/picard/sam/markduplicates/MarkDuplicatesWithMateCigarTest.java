@@ -7,7 +7,11 @@ import org.testng.annotations.Test;
  */
 public class MarkDuplicatesWithMateCigarTest extends AbstractMarkDuplicateFindingAlgorithmTest {
     protected AbstractMarkDuplicateFindingAlgorithmTester getTester() {
-        return new MarkDuplicatesWithMateCigarTester();
+        return new MarkDuplicatesWithMateCigarTester("SUM_OF_BASE_QUALITIES");
+    }
+
+    protected AbstractMarkDuplicateFindingAlgorithmTester getTester(final String scoringStrategy) {
+        return new MarkDuplicatesWithMateCigarTester(scoringStrategy);
     }
 
     // TODO: test program record chaining, including failures. Use MarkDuplicate's facility.
@@ -52,6 +56,29 @@ public class MarkDuplicatesWithMateCigarTest extends AbstractMarkDuplicateFindin
         tester.addMappedFragment(0, 1000, false, "100M", DEFAULT_BASE_QUALITY);
         tester.addMappedFragment(0, 2000, false, "10S100M", DEFAULT_BASE_QUALITY);
         tester.addMappedFragment(0, 3000, true, "2000S100M", DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
+
+    @Test
+     public void testScoringStrategyForReadNameComparison() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester("TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME");
+        tester.addMappedFragment(0, 1, true, DEFAULT_BASE_QUALITY);  // Ref lengths, MapQs equal. First read name in lex order called dup.
+        tester.addMappedFragment(0, 1, false, DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
+
+    @Test
+    public void testScoringStrategyForMateReferenceLengthComparison() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester("TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME");
+
+        // READY pair are both duplicates because (sum of reference length) for both reads is less than for READX
+        // MarkDuplicates and SUM_OF_BASE_QUALITIES scoring strategy would mark READX pair a duplicate, as all reads have equal quals
+        // If this scoring strategy did not account for mate reference length, READX pair would be marked a duplicate
+        tester.addMatePair("READY", 1, 1, 105, false, false, true, true, "50M", "5I45M", false, true, false,
+                false, false, DEFAULT_BASE_QUALITY); // duplicate pair. Both reads should be duplicates!!!
+        tester.addMatePair("READX", 1, 1, 100, false, false, false, false, "50M", "50M", false, true, false,
+                false, false, DEFAULT_BASE_QUALITY);
+
         tester.runTest();
     }
 }
