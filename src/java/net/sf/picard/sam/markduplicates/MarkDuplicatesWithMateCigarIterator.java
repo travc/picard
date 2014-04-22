@@ -507,6 +507,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         }
         final int val = this.alignmentStartCounts.get(alignmentStart); // NB: it should always contain the alignment start
         if (countsToSubtract <= val) { // we should have counts remaining
+            int prevStart = -1;
+            int prevStartCount = -1;
+
             this.alignmentStartCounts.put(alignmentStart, val - countsToSubtract); // update
             // update the current reference index and alignment start, so we can output records
             for (final SAMRecord record : this.alignmentStartSortedBuffer) { //
@@ -515,10 +518,16 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                     continue;
                 }
                 final int start = record.getAlignmentStart();
-                if (!this.alignmentStartCounts.containsKey(start)) {
-                    throw new PicardException("The alignment start " + start + " at referenceIndex" + record.getReferenceIndex() + " was not found in the alignment start counts.");
+
+                if (-1 == prevStart || prevStart != start) {
+                    if (!this.alignmentStartCounts.containsKey(start)) {
+                        throw new PicardException("The alignment start " + start + " at referenceIndex" + record.getReferenceIndex() + " was not found in the alignment start counts.");
+                    }
+                    prevStart = start;
+                    prevStartCount = this.alignmentStartCounts.get(prevStart);
                 }
-                if (0 == this.alignmentStartCounts.get(start)) {
+
+                if (0 == prevStartCount) {
                     this.referenceIndex = record.getReferenceIndex();
                     this.alignmentStart = start; // primary place we update the alignment start
                     // NB: do not remove 'start' from the alignmentStartCounts, as we want to use flush to identify
@@ -677,6 +686,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     {
         final List<ReadEndsMC> chunk = new ArrayList<ReadEndsMC>();
         int lastPairBothMappedIndex = -1; // zero-based
+        Map<Integer,Integer> startPositionsSeen = new HashMap<Integer, Integer>();
 
         if (!toMarkQueue.isEmpty() && alignmentStartSortedBuffer.isEmpty()) {
             throw new PicardException("0 < toMarkQueue && alignmentStartSortedBuffer.isEmpty()");
@@ -694,6 +704,14 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 break;
             }
             chunk.add(next);
+
+            int start = next.getRecord().getAlignmentStart();
+            if (startPositionsSeen.containsKey(start)) {
+                startPositionsSeen.put(start, startPositionsSeen.get(start)+1);
+            }
+            else {
+                startPositionsSeen.put(start, 1);
+            }
 
             // optimizing for later loops
             if (next.isPaired() && !next.getRecord().getReadUnmappedFlag() && !next.getRecord().getMateUnmappedFlag()) {
@@ -719,6 +737,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         }
 
         // update the metrics and subtract counts
+        for (Integer start : startPositionsSeen.keySet()) {
+            this.subtractCount(start, startPositionsSeen.get(start));
+        }
+
+        // count the duplicate metrics
         for (final ReadEndsMC end : chunk) {
             final DuplicationMetrics metrics = getMetrics(end.getRecord());
 
@@ -735,8 +758,6 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 }
             }
 
-            // subtract counts, use alignment start of the record, not the 5' unclipped position
-            this.subtractCount(end.getRecord().getAlignmentStart());
         }
     }
 
