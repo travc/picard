@@ -248,6 +248,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         while (this.backingIterator.hasNext()) {
             // NB: we could get rid of this if we made this.nextRecord into a list...
             SAMRecord record = this.backingIterator.peek(); // peek: used for unmapped reads
+            ReadEndsMC readEnds = null;
+            boolean performedChunkAndMarkTheDuplicates = false;
 
             // remove duplicate information
             record.setDuplicateReadFlag(false);
@@ -326,45 +328,48 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 }
                 // we will check for unmapped reads later so as not to add them to mark queue
             }
+            else {
+                if (-1 == this.toMarkQueueMinimumDistance) {
+                    // use twice the first read's length
+                    this.toMarkQueueMinimumDistance = Math.max(2*record.getReadBases().length, 100);
+                }
 
-            if (-1 == this.toMarkQueueMinimumDistance) {
-                // use twice the first read's length
-                this.toMarkQueueMinimumDistance = Math.max(2*record.getReadBases().length, 100);
-            }
+                readEnds = new ReadEndsMC(header, record);
 
-            final ReadEndsMC readEnds = new ReadEndsMC(header, record);
-            this.backingIterator.next(); // remove it, since we called this.backingIterator.peek()
-
-            // Check that we are not incorrectly performing any duplicate marking, by having too few of the records.  This
-            // can happen if the alignment start is increasing but 5' soft-clipping is increasing such that we miss reads with
-            // the same 5' unclipped alignment start.
-            if (!toMarkQueue.isEmpty()) {
-                final ReadEndsMC end = toMarkQueue.peek();
-                if (end.read1Sequence == readEnds.read1Sequence && toMarkQueueMinimumDistance <= end.read1Coordinate - readEnds.read1Coordinate) {
-                    if (checkCigarForSkips(end.getRecord().getCigar())) {
-                        throw new PicardException("Found a record with sufficiently large code length that we may have\n"
-                                + " missed including it in an early duplicate marking iteration.  Alignment contains skipped"
-                                + " reference bases (N's). If this is an\n RNAseq aligned bam, please use MarkDuplicates instead,"
-                                + " as this tool does not support spliced reads.\n Minimum distance set to " + this.toMarkQueueMinimumDistance
-                                + " but " + (end.read1Coordinate - readEnds.read1Coordinate - 1) + " would be required.");
+                // Check that we are not incorrectly performing any duplicate marking, by having too few of the records.  This
+                // can happen if the alignment start is increasing but 5' soft-clipping is increasing such that we miss reads with
+                // the same 5' unclipped alignment start.
+                if (!toMarkQueue.isEmpty()) {
+                    final ReadEndsMC end = toMarkQueue.peek();
+                    if (end.read1Sequence == readEnds.read1Sequence && toMarkQueueMinimumDistance <= end.read1Coordinate - readEnds.read1Coordinate) {
+                        if (checkCigarForSkips(end.getRecord().getCigar())) {
+                            throw new PicardException("Found a record with sufficiently large code length that we may have\n"
+                                    + " missed including it in an early duplicate marking iteration.  Alignment contains skipped"
+                                    + " reference bases (N's). If this is an\n RNAseq aligned bam, please use MarkDuplicates instead,"
+                                    + " as this tool does not support spliced reads.\n Minimum distance set to " + this.toMarkQueueMinimumDistance
+                                    + " but " + (end.read1Coordinate - readEnds.read1Coordinate - 1) + " would be required.\n"
+                                    + "Record was: " + end.getRecord().getSAMString());
+                        }
+                        else {
+                            throw new PicardException("Found a record with sufficiently large clipping that we may have\n"
+                                    + " missed including it in an early duplicate marking iteration.  Please increase the"
+                                    + " minimum distance to at least " + (end.read1Coordinate - readEnds.read1Coordinate - 1)
+                                    + "bp\nto ensure it is considered (was " + this.toMarkQueueMinimumDistance + ").\n"
+                                    + "Record was: " + end.getRecord().getSAMString());
+                        }
                     }
-                    else {
-                    throw new PicardException("Found a record with sufficiently large clipping that we may have\n"
-                            + " missed including it in an early duplicate marking iteration.  Please increase the"
-                            + " minimum distance to at least " + (end.read1Coordinate - readEnds.read1Coordinate - 1)
-                            + "bp\nto ensure it is considered (was " + this.toMarkQueueMinimumDistance + ").");
-                    }
+                }
+
+                // do duplicate marking on the available records
+                while (!toMarkQueue.isEmpty() &&
+                        (this.referenceIndex != readEnds.read1Sequence ||
+                                toMarkQueueMinimumDistance < readEnds.read1Coordinate - toMarkQueue.peek().read1Coordinate)) {
+                    chunkAndMarkTheDuplicates();
+                    performedChunkAndMarkTheDuplicates = true; // indicates we can perhaps find a record if we flush
                 }
             }
 
-            // do duplicate marking on the available records
-            boolean performedChunkAndMarkTheDuplicates = false;
-            while (!toMarkQueue.isEmpty() &&
-                    (this.referenceIndex != readEnds.read1Sequence ||
-                            toMarkQueueMinimumDistance < readEnds.read1Coordinate - toMarkQueue.peek().read1Coordinate)) {
-                chunkAndMarkTheDuplicates();
-                performedChunkAndMarkTheDuplicates = true; // indicates we can perhaps find a record if we flush
-            }
+            this.backingIterator.next(); // remove the record, since we called this.backingIterator.peek()
 
             // add it to the alignment start counts
             this.add(record); // now record will be tracked by alignmentStartSortedBuffer and alignmentStartCounts
@@ -622,7 +627,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      */
     private boolean areComparableForDuplicates(final ReadEndsMC lhs, final ReadEndsMC rhs, final boolean withOrientation, final boolean withSecondEnd) {
         boolean retval = lhs.libraryId == rhs.libraryId &&
-                lhs.read1Sequence   == rhs.read1Sequence &&
+                lhs.read1Sequence == rhs.read1Sequence &&
                 lhs.read1Coordinate == rhs.read1Coordinate &&
                 (!withOrientation || lhs.orientation == rhs.orientation);
         if (withSecondEnd && lhs.record.getReadPairedFlag() && rhs.record.getReadPairedFlag()) {
@@ -818,6 +823,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             this.read1Sequence = rec.getReferenceIndex();
             this.read1Coordinate = rec.getReadNegativeStrandFlag() ? rec.getUnclippedEnd() : rec.getUnclippedStart();
+            if (rec.getReadUnmappedFlag()) {
+                throw new PicardException("Found an unexpected unmapped read");
+            }
 
             if (this.record.getReadPairedFlag() && !this.record.getReadUnmappedFlag() && !this.record.getMateUnmappedFlag()) {
                 this.read2Sequence = rec.getMateReferenceIndex();
