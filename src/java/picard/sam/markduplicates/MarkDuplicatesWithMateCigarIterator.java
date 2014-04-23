@@ -71,15 +71,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     private int alignmentStart = 0;
 
     private final PriorityQueue<ReadEndsMC> toMarkQueue = new PriorityQueue<ReadEndsMC>(100, new ReadEndsMCComparator()); // sorted by 5' start unclipped position
-    // alignment start -> counts, defaults to zero
-    private final CollectionUtil.DefaultingMap<Integer, Integer> alignmentStartCounts = new CollectionUtil.DefaultingMap<Integer, Integer>(
-            new CollectionUtil.DefaultingMap.Factory<Integer, Integer>() {
-                @Override
-                public Integer make(final Integer integer) {
-                    return 0;
-                }
-            },
-            true);
+    private final TreeMap<Integer, Integer> alignmentStartCounts = new TreeMap<Integer, Integer>();
     private final List<SAMRecord> alignmentStartSortedBuffer = new LinkedList<SAMRecord>();
 
     private SAMRecord nextRecord = null;
@@ -494,6 +486,13 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         this.subtractCount(alignmentStart, 1);
     }
 
+    private int getAlignmentStartCounts(int alignmentStart) {
+        if (!this.alignmentStartCounts.containsKey(alignmentStart)) {
+            return -1;
+        }
+        return this.alignmentStartCounts.get(alignmentStart);
+    }
+
     /**
      * When a record has been through duplicate marking, this method is called on with the record's alignmentStart so
      * we know it is complete.  We can return records when all records at the same alignment start have been marked.
@@ -505,30 +504,20 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         if (!this.alignmentStartCounts.containsKey(alignmentStart)) {
             throw new PicardException("Trying to remove " + countsToSubtract + " that is not in the map: " + alignmentStart + " this.referenceIndex=" + this.referenceIndex);
         }
-        final int val = this.alignmentStartCounts.get(alignmentStart); // NB: it should always contain the alignment start
-        if (countsToSubtract <= val) { // we should have counts remaining
+        final int val = getAlignmentStartCounts(alignmentStart); // NB: it should always contain the alignment start
+        if (-1 < val && countsToSubtract <= val) { // we should have counts remaining
             int prevStart = -1;
             int prevStartCount = -1;
 
             this.alignmentStartCounts.put(alignmentStart, val - countsToSubtract); // update
-            // update the current reference index and alignment start, so we can output records
-            for (final SAMRecord record : this.alignmentStartSortedBuffer) { //
-                // We don't need to worry about alignmentStartCounts for reads in the buffer from previous referenceIndexes
-                if (this.referenceIndex != record.getReferenceIndex()) {
-                    continue;
-                }
-                final int start = record.getAlignmentStart();
 
-                if (-1 == prevStart || prevStart != start) {
-                    if (!this.alignmentStartCounts.containsKey(start)) {
-                        throw new PicardException("The alignment start " + start + " at referenceIndex" + record.getReferenceIndex() + " was not found in the alignment start counts.");
-                    }
-                    prevStart = start;
-                    prevStartCount = this.alignmentStartCounts.get(prevStart);
-                }
+            // update the current alignment start, so we can output records
+            // NB: we only need to examine the records which we have counts, so we can use the counts themselves, as long as they are
+            // returned in an ascending order
+            for (int start : this.alignmentStartCounts.keySet()) {
+                int count = this.alignmentStartCounts.get(start);
 
-                if (0 == prevStartCount) {
-                    this.referenceIndex = record.getReferenceIndex();
+                if (0 == count) {
                     this.alignmentStart = start; // primary place we update the alignment start
                     // NB: do not remove 'start' from the alignmentStartCounts, as we want to use flush to identify
                     // such reads
@@ -553,7 +542,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      * @param countsToAdd
      */
     private void addCount(final int alignmentStart, final int countsToAdd) {
-        this.alignmentStartCounts.put(alignmentStart, this.alignmentStartCounts.get(alignmentStart) + countsToAdd);
+        int prevCount = getAlignmentStartCounts(alignmentStart);
+        if (prevCount < 0) prevCount = 0;
+        this.alignmentStartCounts.put(alignmentStart, prevCount + countsToAdd);
     }
 
     /**
