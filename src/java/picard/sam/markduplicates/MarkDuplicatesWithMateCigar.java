@@ -107,7 +107,8 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
                 this.MINIMUM_DISTANCE,
                 this.REMOVE_DUPLICATES,
                 this.SCORING_STRATEGY,
-                this.SKIP_PAIRS_WITH_NO_MATE_CIGAR);
+                this.SKIP_PAIRS_WITH_NO_MATE_CIGAR,
+                this.MAX_RECORDS_IN_RAM);
 
         // progress logger!
         final ProgressLogger progress = new ProgressLogger(log, (int) 1e6, "Read");

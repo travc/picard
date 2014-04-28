@@ -195,7 +195,8 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         final List<SAMFileReader> readers = new ArrayList<SAMFileReader>(INPUT.size());
 
         for (final File f : INPUT) {
-            final SAMFileReader reader = new SAMFileReader(f, true);
+//            final SAMFileReader reader = new SAMFileReader(f);
+            final SAMFileReader reader = new SAMFileReader(f, true); // eager decode
             final SAMFileHeader header = reader.getFileHeader();
 
             if (!ASSUME_SORTED && header.getSortOrder() != SAMFileHeader.SortOrder.coordinate) {
