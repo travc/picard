@@ -32,7 +32,6 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
 
     protected final static int DEFAULT_BASE_QUALITY = 10;
 
-
     @Test
     public void testSingleUnmappedFragment() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
@@ -208,7 +207,6 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
         tester.addMatePair(1, 10056, 10056, true, false, false, false, null, "54M22S", false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
-
 
     @Test
     public void testMappedFragmentAndMatePairOneUnmapped() {
