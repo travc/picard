@@ -61,12 +61,14 @@ public class OpticalDuplicateFinder {
     public static interface PhysicalLocation {
         short getReadGroup();
         void  setReadGroup(short rg);
-        short  getTile();
+        short getTile();
         void  setTile(short tile);
         short getX();
         void  setX(short x);
         short getY();
         void  setY(short y);
+        short getLibraryId();
+        void  setLibraryId(short libraryId);
     }
 
     /**
