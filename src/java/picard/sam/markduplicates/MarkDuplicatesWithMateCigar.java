@@ -115,7 +115,9 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
 
         // Go through the records
         for (final SAMRecord record : new IterableAdapter<SAMRecord>(iterator)) {
-            progress.record(record);
+            if (progress.record(record)) {
+                iterator.logMemoryStats(log);
+            }
 
             // Update the program record if necessary
             if (PROGRAM_RECORD_ID != null) {

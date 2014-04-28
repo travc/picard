@@ -221,7 +221,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
      * Looks through the set of reads and identifies how many of the duplicates are
      * in fact optical duplicates, and stores the data in the instance level histogram.
      */
-    protected static void trackOpticalDuplicates(final List<? extends ReadEnds> list,
+    protected static void trackOpticalDuplicates(final List<? extends OpticalDuplicateFinder.PhysicalLocation> list,
                                                  final OpticalDuplicateFinder opticalDuplicateFinder,
                                                  final Histogram<Short> opticalDupesByLibraryId) {
 
@@ -230,7 +230,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         int opticalDuplicates = 0;
         for (final boolean b: opticalDuplicateFlags) if (b) ++opticalDuplicates;
         if (opticalDuplicates > 0) {
-            opticalDupesByLibraryId.increment(list.get(0).libraryId, opticalDuplicates);
+            opticalDupesByLibraryId.increment(list.get(0).getLibraryId(), opticalDuplicates);
         }
     }
 

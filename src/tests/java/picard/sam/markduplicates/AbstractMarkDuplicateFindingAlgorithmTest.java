@@ -25,14 +25,13 @@ package picard.sam.markduplicates;
 
 import picard.PicardException;
 import org.testng.annotations.Test;
+import sun.jvm.hotspot.debugger.cdbg.DebugEvent;
 
 public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
 
     protected abstract AbstractMarkDuplicateFindingAlgorithmTester getTester();
 
     protected final static int DEFAULT_BASE_QUALITY = 10;
-
-    //TODO - Add a test case that includes reads from multiple chromosomes, with some expected duplicates from each chromosome
 
     @Test
     public void testSingleUnmappedFragment() {
@@ -106,6 +105,58 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     }
 
     @Test
+    public void testTwoMappedPairsAndTerminalUnmappedFragment() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedPair(1, 1, 100, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMappedPair(1, 1, 100, true, true, DEFAULT_BASE_QUALITY); // duplicate!!!
+        tester.addUnmappedFragment(-1, DEFAULT_BASE_QUALITY); // unmapped fragment at end of file
+        tester.runTest();
+    }
+
+    @Test
+    public void testTwoMappedPairsAndTerminalUnmappedPair() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedPair(1, 1, 100, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMappedPair(1, 1, 100, true, true, DEFAULT_BASE_QUALITY); // duplicate!!!
+        tester.addUnmappedPair(-1, DEFAULT_BASE_QUALITY); // unmapped pair at end of file
+        tester.runTest();
+    }
+
+    @Test
+    public void testOpticalDuplicateFinding() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+
+        // explicitly creating 1 expected optical duplicate pair
+        tester.setExpectedOpticalDuplicate(1);
+
+        // pass in the read names manually, in order to control duplicates vs optical duplicates
+        tester.addMatePair("READ0:1:1:1:1", 1, 1, 100, false, false, false, false, "50M", "50M", false, true, false,
+                           false, false, DEFAULT_BASE_QUALITY); // non-duplicate mapped pair to start
+        tester.addMatePair("READ1:1:1:1:300", 1, 1, 100, false, false, true, true, "50M", "50M", false, true, false,
+                           false, false, DEFAULT_BASE_QUALITY); // duplicate pair, NOT optical duplicate (delta-Y > 100)
+        tester.addMatePair("READ2:1:1:1:50", 1, 1, 100, false, false, true, true, "50M", "50M", false, true, false,
+                           false, false, DEFAULT_BASE_QUALITY); // duplicate pair, expected optical duplicate (delta-X and delta-Y < 100)
+        tester.runTest();
+    }
+
+    @Test
+    public void testTwoMappedPairsAndMappedSecondaryFragment() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedPair(1, 1, 100, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMappedPair(1, 1, 100, true, true, DEFAULT_BASE_QUALITY); // duplicate!!!
+        tester.addMappedFragment(1, 200, false, DEFAULT_BASE_QUALITY, true); // mapped non-primary fragment
+        tester.runTest();
+    }
+
+    @Test
+    public void testMappedFragmentAndMappedPairFirstOfPairNonPrimary() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedFragment(1, 1, false,DEFAULT_BASE_QUALITY);
+        tester.addMatePair(1, 200, 0, false, true, false, false, "54M22S", null, false, false, true, true, false, DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
+
+    @Test
     public void testTwoMappedPairsMatesSoftClipped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.addMappedPair(1, 10022, 10051, false, false, "76M", "8S68M", false, true, false, DEFAULT_BASE_QUALITY);
@@ -147,22 +198,21 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     @Test
     public void testMatePairFirstUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMatePair(1, 10049, 10049, false, true, false, false, "11M2I63M", null, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair(1, 10049, 10049, false, true, false, false, "11M2I63M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
 
     @Test
     public void testMatePairSecondUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMatePair(1, 10056, 10056, true, false, false, false, null, "54M22S", false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair(1, 10056, 10056, true, false, false, false, null, "54M22S", false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
-
 
     @Test
     public void testMappedFragmentAndMatePairOneUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMatePair(1, 10049, 10049, false, true, false, false, "11M2I63M", null, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair(1, 10049, 10049, false, true, false, false, "11M2I63M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.addMappedFragment(1, 10049, true, DEFAULT_BASE_QUALITY); // duplicate
         tester.runTest();
     }
@@ -170,7 +220,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     @Test
     public void testMappedPairAndMatePairOneUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMatePair(1, 10040, 10040, false, true, true, false, "76M", null, false, false, false, DEFAULT_BASE_QUALITY); // first a duplicate,
+        tester.addMatePair(1, 10040, 10040, false, true, true, false, "76M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY); // first a duplicate,
         // second end unmapped
         tester.addMappedPair(1, 10189, 10040, false, false, "41S35M", "65M11S", true, false, false, DEFAULT_BASE_QUALITY); // mapped OK
         tester.runTest();

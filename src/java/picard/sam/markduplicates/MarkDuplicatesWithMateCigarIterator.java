@@ -27,11 +27,11 @@ package picard.sam.markduplicates;
 import picard.PicardException;
 import htsjdk.samtools.util.Histogram;
 import picard.sam.DuplicationMetrics;
+import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.*;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.RuntimeEOFException;
-import htsjdk.samtools.util.SortingCollection;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.*;
 
@@ -55,14 +55,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     private boolean removeDuplicates = false;
     private boolean skipPairsWithNoMateCigar = true;
 
-    private int toMarkQueueMinimumDistance = -1;
-
     private final Map<String,DuplicationMetrics> metricsByLibrary = new HashMap<String,DuplicationMetrics>();
     private final Map<String,Short> libraryIds = new HashMap<String,Short>();
     private short nextLibraryId = 1;
 
     private int numRecordsWithNoMateCigar = 0;
-    private int numDuplicates = 0;
 
     // Variables used for optical duplicate detection and tracking
     private final Histogram<Short> opticalDupesByLibraryId = new Histogram<Short>();
@@ -70,9 +67,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     private boolean foundUnmappedEOFReads = false;
     private int referenceIndex = 0;
 
-    private final PriorityQueue<ReadEndsMC> toMarkQueue = new PriorityQueue<ReadEndsMC>(100, new ReadEndsMCComparator()); // sorted by 5' start unclipped position
-    private final ArrayDeque<SAMRecord> alignmentStartSortedBuffer;
-    private final Map<String, Boolean> isDuplicateMarkedMap = new HashMap<String, Boolean>();
+    private final MarkQueue toMarkQueue = new MarkQueue();
+
+    private final ArrayDeque<DuplicateMarkedSAMRecord> alignmentStartSortedBuffer = new ArrayDeque<DuplicateMarkedSAMRecord>();
 
     private SAMRecord nextRecord = null;
     private OpticalDuplicateFinder opticalDuplicateFinder = null;
@@ -85,10 +82,6 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         SUM_OF_BASE_QUALITIES,
         TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME
     }
-
-    // Convenience variables to be set and used by processChunkSubset and markTheDuplicates.  They are used
-    // for when marking fragment reads to check if paired reads were previously found for the same orientation.
-    private boolean hasPairsR, hasPairsF; // for convenience, no static variables in Java (go C)
 
     /**
      * Initializes the mark duplicates iterator
@@ -133,10 +126,21 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             }
         }
 
-        this.toMarkQueueMinimumDistance = toMarkQueueMinimumDistance;
+        this.toMarkQueue.setToMarkQueueMinimumDistance(toMarkQueueMinimumDistance);
 
         // get the first record
         this.nextRecord = this.markDuplicatesAndGetTheNextAvailable(); // get one directly, or null
+    }
+
+    public void logMemoryStats(final Log log) {
+        System.gc();
+        final Runtime runtime = Runtime.getRuntime();
+        log.info("freeMemory: " + runtime.freeMemory() +
+                "; totalMemory: " + runtime.totalMemory() +
+                "; maxMemory: " + runtime.maxMemory() +
+                "; buffer size: " + alignmentStartSortedBuffer.size() +
+                "; queue size: " + toMarkQueue.size()
+        );
     }
 
     /**
@@ -149,7 +153,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     /**
      * Establishes that records returned by this iterator are expected to
      * be in the specified sort order.  If this method has been called,
-     * then implementers must throw an IllegalStateException from next()
+     * then implementers must throw an IllegalStateException from tmpReadEnds()
      * when a record is read that violates the sort order.  This method
      * may be called multiple times over the course of an iteration,
      * changing the expected sort, if desired -- from the time it is called,
@@ -174,7 +178,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         // fast fail
         if (!this.backingIterator.hasNext() && this.alignmentStartSortedBuffer.isEmpty() && null == this.nextRecord) return false;
 
-        // return if we have next record
+        // return if we have tmpReadEnds record
         return (null != this.nextRecord);
     }
 
@@ -323,12 +327,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 // we will check for unmapped reads later so as not to add them to mark queue
             }
             else {
-                if (-1 == this.toMarkQueueMinimumDistance) {
-                    // use the first read's length + 1
-                    this.toMarkQueueMinimumDistance = Math.max(record.getReadBases().length + 1, 100);
-
+                if (-1 == this.toMarkQueue.getToMarkQueueMinimumDistance()) {
                     // use twice the first read's length
-//                    this.toMarkQueueMinimumDistance = Math.max(2*record.getReadBases().length, 100);
+                    this.toMarkQueue.setToMarkQueueMinimumDistance(Math.max(2*record.getReadBases().length, 100));
                 }
 
                 // build a read end for use in the to-mark queue
@@ -339,20 +340,22 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 // the same 5' unclipped alignment start.
                 if (!toMarkQueue.isEmpty()) {
                     final ReadEndsMC end = toMarkQueue.peek();
-                    if (end.read1Sequence == readEnds.read1Sequence && toMarkQueueMinimumDistance <= end.read1Coordinate - readEnds.read1Coordinate) {
+                    if (end.read1Sequence == readEnds.read1Sequence && this.toMarkQueue.getToMarkQueueMinimumDistance() <= end.read1Coordinate - readEnds.read1Coordinate) {
                         if (checkCigarForSkips(end.getRecord().getCigar())) {
                             throw new PicardException("Found a record with sufficiently large code length that we may have\n"
                                     + " missed including it in an early duplicate marking iteration.  Alignment contains skipped"
                                     + " reference bases (N's). If this is an\n RNAseq aligned bam, please use MarkDuplicates instead,"
                                     + " as this tool does not work well with spliced reads.\n Minimum distance set to "
-                                    + this.toMarkQueueMinimumDistance + " but " + (end.read1Coordinate - readEnds.read1Coordinate - 1)
+                                    + this.toMarkQueue.getToMarkQueueMinimumDistance() + " but " + (end.read1Coordinate - readEnds.read1Coordinate - 1)
                                     + " would be required.\n" + "Record was: " + end.getRecord().getSAMString());
                         }
                         else {
+                            System.err.println("end: " + end.getRecord().getSAMString());
+                            System.err.println("readEnds: " + readEnds.getRecord().getSAMString());
                             throw new PicardException("Found a record with sufficiently large clipping that we may have\n"
                                     + " missed including it in an early duplicate marking iteration.  Please increase the"
                                     + " minimum distance to at least " + (end.read1Coordinate - readEnds.read1Coordinate - 1)
-                                    + "bp\nto ensure it is considered (was " + this.toMarkQueueMinimumDistance + ").\n"
+                                    + "bp\nto ensure it is considered (was " + this.toMarkQueue.getToMarkQueueMinimumDistance() + ").\n"
                                     + "Record was: " + end.getRecord().getSAMString());
                         }
                     }
@@ -361,9 +364,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 // do duplicate marking on the available records
                 while (!toMarkQueue.isEmpty() &&
                         (this.referenceIndex != readEnds.read1Sequence ||
-                                toMarkQueueMinimumDistance < readEnds.read1Coordinate - toMarkQueue.peek().read1Coordinate)) {
+                                this.toMarkQueue.getToMarkQueueMinimumDistance() < readEnds.read1Coordinate - toMarkQueue.peek().read1Coordinate)) {
                     chunkAndMarkTheDuplicates();
                     performedChunkAndMarkTheDuplicates = true; // indicates we can perhaps find a record if we flush
+                    // greedily exit this look if we could flush!
+                    if (this.alignmentStartSortedBuffer.peekFirst().duplicateMarked) break;
                 }
             }
 
@@ -435,7 +440,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
     /** Useful for statistics after the iterator has completed */
     public int getNumRecordsWithNoMateCigar() { return this.numRecordsWithNoMateCigar; }
-    public int getNumDuplicates() { return this.numDuplicates; }
+    public int getNumDuplicates() { return this.toMarkQueue.getNumDuplicates(); }
     public Map<String,Short> getLibraryIds() { return this.libraryIds; }
     public Histogram<Short> getOpticalDupesByLibraryId() { return this.opticalDupesByLibraryId; }
     public Map<String,DuplicationMetrics> getMetricsByLibrary() { return this.metricsByLibrary; }
@@ -489,192 +494,27 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     }
 
     /**
-     * This performs duplicate marking on a subset of chunk: [startChunkIdx, endChunkIdx] (inclusive).
-     */
-    private void markTheDuplicates(final List<ReadEndsMC> chunk,
-                                   final boolean isPaired) {
-        boolean prevWasBest = false; // for pairs, this is the default
-
-        if (chunk.isEmpty()) return; // should never happen
-
-        final ReadEndsMC firstReadEndsMC = chunk.get(0);
-
-        // we mark all as duplicates if a valid pair read was found previously
-        if (!isPaired) {
-            prevWasBest = (ReadEndsMC.F == firstReadEndsMC.orientation && hasPairsF)
-                    || (ReadEndsMC.R == firstReadEndsMC.orientation && hasPairsR);
-        }
-
-        // must be more than one to mark duplicates
-        if (prevWasBest || 1 < chunk.size()) {
-            ReadEndsMC best = null;
-            int totalNumberToConsider = 0;
-
-            if (!prevWasBest) { // should we find a 'best'?
-                // check that we do not have all one paired end with both ends mapped to the same 5' location
-
-                // get the best scoring end
-                for (final ReadEndsMC end : chunk) {
-                    // ignore unmapped reads
-                    if (end.getRecord().getReadUnmappedFlag()) continue;
-
-                    // get the best score end
-                    if (null == best || compareRecordsByScoringStrategy(best.getRecord(), end.getRecord()) < 0) {
-                        best = end;
-                    }
-                    totalNumberToConsider++;
-                }
-            }
-
-            // do not mark duplicates if we have only one or all the read names are the same
-            if (prevWasBest || (1 < totalNumberToConsider)) {
-                // annotate the record(s) and decrement the coordinate counts
-                for (final ReadEndsMC end : chunk) {
-                    // to duplicate mark, or not to duplicate mark, that is the question
-                    // NB: do not mark records that have the same read name as the "best"
-                    if (null != best && (best == end || best.getRecordReadName().equals(end.getRecordReadName()))) {
-                        // not a duplicate
-                        end.getRecord().setDuplicateReadFlag(false);
-                    }
-                    else if (!end.getRecord().getReadUnmappedFlag()) { // do not mark unmapped reads as duplicates
-                        // duplicate
-                        end.getRecord().setDuplicateReadFlag(true);
-                    }
-                }
-            }
-        }
-
-        // optical duplicates and set flags for if future fragments should all be duplicates
-        if (isPaired) { // only for pairs
-            // optical duplicates
-            if (1 < chunk.size()) {
-                final List<ReadEndsMC> firstOfPairs = new LinkedList<ReadEndsMC>();
-                for (final ReadEndsMC end : chunk) {
-                    if (end.isPaired() && end.getRecord().getFirstOfPairFlag()) firstOfPairs.add(end);
-                }
-                AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(firstOfPairs,
-                        this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
-            }
-            // for future fragment reads
-            if (firstReadEndsMC.getRecord().getReadNegativeStrandFlag()) this.hasPairsR = true;
-            else this.hasPairsF = true;
-        }
-    }
-
-    /**
-     * We only mark duplicates on groups of reads with the same library, genomic coordinate (5' unclipped), and orientation
-     * (mapped strand).  In the case of pairs, we in addition consider the mate's genomic coordinate (5' unclipped).  We
-     * also provide the ability to ignore orientation as well as the mate's genomic coordinate.
-     */
-    private boolean areComparableForDuplicates(final ReadEndsMC lhs, final ReadEndsMC rhs, final boolean withOrientation, final boolean withSecondEnd) {
-        boolean retval = lhs.libraryId == rhs.libraryId &&
-                lhs.read1Sequence == rhs.read1Sequence &&
-                lhs.read1Coordinate == rhs.read1Coordinate &&
-                (!withOrientation || lhs.orientation == rhs.orientation);
-        if (withSecondEnd && lhs.record.getReadPairedFlag() && rhs.record.getReadPairedFlag()) {
-            retval = retval &&
-                    lhs.read2Sequence   == rhs.read2Sequence &&
-                    lhs.read2Coordinate == rhs.read2Coordinate;
-        }
-        return retval;
-    }
-
-    /**
-     * This will split the records based on orientation, and then run mark duplicates.  We assumed this is called twice
-     * in succession, once for a chunk of paired reads, and once for a chunk of fragment/unpaired reads.  The chunk
-     * provided are not divided by orientation (with areComparableForDuplicates).      */
-    private void processChunkSubset(final List<ReadEndsMC> chunk,
-                                    final boolean isPaired) {
-        ReadEndsMC start = null;
-        int currentChunkIdx = 0;
-        int startChunkIdx = 0;
-
-        // go through the chunk.  We wish to split further split them by orientation.
-        for (final ReadEndsMC next : chunk) {
-            // update
-            if (null == start) {
-                start = next;
-                startChunkIdx = currentChunkIdx;
-            }
-            else if (!areComparableForDuplicates(start, next, true, isPaired)) { // now include orientation
-                // mark duplicates
-                markTheDuplicates(chunk.subList(startChunkIdx, currentChunkIdx), isPaired);
-
-                // move to the next chunk
-                startChunkIdx = currentChunkIdx;
-                start = next;
-            }
-            // next
-            currentChunkIdx++;
-        }
-        // mark the last chunk, always
-        markTheDuplicates(chunk.subList(startChunkIdx, currentChunkIdx), isPaired);
-    }
-
-    /**
      * Chunk the records and mark the duplicates.
      */
     private void chunkAndMarkTheDuplicates()
     {
-        final List<ReadEndsMC> chunk = new ArrayList<ReadEndsMC>();
-        int lastPairBothMappedIndex = -1; // zero-based
+        if (this.toMarkQueue.isEmpty()) return;
 
         if (!toMarkQueue.isEmpty() && this.alignmentStartSortedBuffer.isEmpty()) {
             throw new PicardException("0 < toMarkQueue && !alignmentStartSortedBuffer.iterator().hasNext()");
         }
 
-        // Get all records at this position.
-        // We do not care about the orientation or second end yet.
-        while (!toMarkQueue.isEmpty()) {
-            final ReadEndsMC next;
+        final ReadEndsMC next = this.toMarkQueue.poll(); // get the first one!
 
-            if (chunk.isEmpty() || areComparableForDuplicates(chunk.get(0), toMarkQueue.peek(), false, false)) {
-                next = toMarkQueue.poll();
-            }
-            else {
-                break;
-            }
-            chunk.add(next);
-            this.setHasBeenMarkedFlag(getReadKey(next.getRecord()), true); // track that this record has been through duplicate marking
+        // it is not marked as a duplicate :)
+        next.setHasBeenMarkedFlag();
 
-            // optimizing for later loops
-            if (next.isPaired() && !next.getRecord().getReadUnmappedFlag() && !next.getRecord().getMateUnmappedFlag()) {
-                lastPairBothMappedIndex++;
-            }
-        }
-
-        // no duplicate marking necessary on one record
-        if (1 < chunk.size()) {
-
-            // reset
-            this.hasPairsF = this.hasPairsR = false;
-
-            // process the pairs (both ends mapped) first
-            if (0 <= lastPairBothMappedIndex) {
-                processChunkSubset(chunk.subList(0, lastPairBothMappedIndex+1), true);
-            }
-
-            // next come the unpaired and fragments
-            if (lastPairBothMappedIndex+1 < chunk.size()) {
-                processChunkSubset(chunk.subList(lastPairBothMappedIndex+1, chunk.size()), false);
-            }
-        }
-
-        // count the duplicate metrics
-        for (final ReadEndsMC end : chunk) {
-            final DuplicationMetrics metrics = getMetrics(end.getRecord());
-
-            if (end.getRecord().getDuplicateReadFlag()) {
-                // duplicate
-                this.numDuplicates++;
-
-                // Update the duplication metrics
-                if (!end.getRecord().getReadPairedFlag() || end.getRecord().getMateUnmappedFlag()) {
-                    ++metrics.UNPAIRED_READ_DUPLICATES;
-                }
-                else {
-                    ++metrics.READ_PAIR_DUPLICATES;// will need to be divided by 2 at the end
-                }
+        // track optical duplicates
+        if (next.isPaired() && 0 == next.hasUnmapped) {
+            final Set<PhysicalLocationMC> locations = this.toMarkQueue.getLocations(next);
+            if (!locations.isEmpty()) {
+                    AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(new ArrayList<PhysicalLocationMC>(locations),
+                            this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
             }
         }
     }
@@ -692,7 +532,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     }
 
     /** Get the library ID for the given SAM record. */
-    private short getLibraryId(final SAMFileHeader header, final SAMRecord rec) {
+    private short getLibraryIdFromRecord(final SAMFileHeader header, final SAMRecord rec) {
         final String library = AbstractMarkDuplicateFindingAlgorithm.getLibraryName(header, rec);
         Short libraryId = this.libraryIds.get(library);
 
@@ -704,7 +544,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         return libraryId;
     }
 
-    /** We allow different scoring strategies. Larger is better. */
+    /** We allow different scoring strategies. We return <0 if rec1 has a better strategy than rec2. */
     private int compareRecordsByScoringStrategy(final SAMRecord rec1, final SAMRecord rec2) {
         int cmp = 0;
         int referenceLength1, referenceLength2;
@@ -729,7 +569,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 if (0 == cmp) cmp = rec1.getReadName().compareTo(rec2.getReadName());
                 break;
         }
-        return cmp;
+        return -cmp;
     }
 
     /** Calculates a score for the read which is the sum of scores over Q15. */
@@ -780,10 +620,10 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             }
 
             // Fill in the library ID
-            this.libraryId = getLibraryId(header, this.record);
+            this.libraryId = getLibraryIdFromRecord(header, this.record);
 
             // Is this unmapped or its mate?
-            if (this.record.getReadUnmappedFlag() || (this.record.getReadPairedFlag() && this.record.getMateNegativeStrandFlag())) {
+            if (this.record.getReadUnmappedFlag() || (this.record.getReadPairedFlag() && this.record.getMateUnmappedFlag())) {
                 this.hasUnmapped = 1;
             }
 
@@ -808,23 +648,269 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         public SAMRecord getRecord() { return this.record; }
         public SAMRecord setRecord(final SAMRecord record) { return this.record = record; }
         public String getRecordReadName() { return this.record.getReadName(); }
+
+        @Override
+        public boolean isPaired() { return this.getRecord().getReadPairedFlag(); }
     }
 
-    /** Comparator for ReadEndsMC that orders by read1 position then pair orientation then read2 position. */
-    // Could be a Singleton, but no static variables in inner classes.
-    class ReadEndsMCComparator implements Comparator<ReadEndsMC> {
-        public int compare(final ReadEndsMC lhs, final ReadEndsMC rhs) {
-            int retval = lhs.libraryId - rhs.libraryId;
-            if (retval == 0) retval = lhs.read1Sequence - rhs.read1Sequence;
-            if (retval == 0) retval = lhs.read1Coordinate - rhs.read1Coordinate;
-            if (retval == 0) retval = rhs.orientation - lhs.orientation; // IMPORTANT: reverse the order to get pairs first
-            if (retval == 0 && lhs.isPaired() != rhs.isPaired()) return lhs.isPaired() ? -1 : 1; // unpaired goes first...
-            if (retval == 0) retval = lhs.hasUnmapped - rhs.hasUnmapped;
-            if (retval == 0) retval = lhs.read2Sequence   - rhs.read2Sequence;
-            if (retval == 0) retval = lhs.read2Coordinate - rhs.read2Coordinate;
-            if (retval == 0) retval = lhs.getRecordReadName().compareTo(rhs.getRecordReadName());
+    /** Stores the minimal information needed for optical duplicate detection. */
+    private class PhysicalLocationMC implements OpticalDuplicateFinder.PhysicalLocation {
 
-            return retval;
+        // Information used to detect optical dupes
+        short readGroup = -1;
+        short tile = -1;
+        short x = -1, y = -1;
+        short libraryId;
+
+        public PhysicalLocationMC(final OpticalDuplicateFinder.PhysicalLocation rec) {
+            this.setReadGroup(rec.getReadGroup());
+            this.setTile(rec.getTile());
+            this.setX(rec.getX());
+            this.setY(rec.getY());
+            this.setLibraryId(rec.getLibraryId());
+        }
+
+        public short getReadGroup() { return this.readGroup; }
+        public void  setReadGroup(final short rg) { this.readGroup = rg; }
+        public short getTile() { return this.tile; }
+        public void  setTile(final short tile) { this.tile = tile; }
+        public short getX() { return this.x; }
+        public void  setX(final short x) { this.x = x; }
+        public short getY() { return this.y; }
+        public void  setY(final short y) { this.y = y;}
+        public short getLibraryId() { return this.libraryId; }
+        public void  setLibraryId(final short libraryId) { this.libraryId = libraryId; }
+    }
+
+    /**
+     * This is the mark queue.
+     *
+     * This stores a current set of read ends that need to be duplicate marked.  It only stores internally the "best" read end for a given
+     * possible duplicate location, preferring to perform duplicate marking as read ends come in, rather than wait for all "comparable"
+     * read ends to arrive.
+     */
+    private class MarkQueue {
+
+        /** Comparator to order the mark queue set.  The set of all the read ends that have are compared to be the same should
+         * be used for duplicate marking. */
+        private class MarkQueueComparator implements Comparator<ReadEndsMC> {
+            public int compare(final ReadEndsMC lhs, final ReadEndsMC rhs) {
+                int retval = lhs.libraryId - rhs.libraryId;
+                if (retval == 0) retval = lhs.read1Sequence - rhs.read1Sequence;
+                if (retval == 0) retval = lhs.read1Coordinate - rhs.read1Coordinate;
+                if (retval == 0) retval = rhs.orientation - lhs.orientation; // to get pairs first
+                if (retval == 0) retval = lhs.read2Sequence - rhs.read2Sequence;
+                if (retval == 0) retval = lhs.read2Coordinate - rhs.read2Coordinate;
+                return retval;
+            }
+        }
+
+        /** Comparator for ReadEndsMC that orders by read1 position then pair orientation then read2 position. */
+        // Could be a Singleton, but no static variables in inner classes.
+        class ReadEndsMCComparator implements Comparator<ReadEndsMC> {
+            public int compare(final ReadEndsMC lhs, final ReadEndsMC rhs) {
+                int retval = lhs.libraryId - rhs.libraryId;
+                if (retval == 0) retval = lhs.read1Sequence - rhs.read1Sequence;
+                if (retval == 0) retval = lhs.read1Coordinate - rhs.read1Coordinate;
+                if (retval == 0) retval = rhs.orientation - lhs.orientation; // IMPORTANT: reverse the order to get pairs first
+                if (retval == 0 && lhs.isPaired() != rhs.isPaired()) return lhs.isPaired() ? -1 : 1; // unpaired goes first...
+                if (retval == 0) retval = lhs.hasUnmapped - rhs.hasUnmapped;
+                if (retval == 0) retval = lhs.read2Sequence - rhs.read2Sequence;
+                if (retval == 0) retval = lhs.read2Coordinate - rhs.read2Coordinate;
+                if (retval == 0) retval = compareRecordsByScoringStrategy(lhs.getRecord(), rhs.getRecord());
+                if (retval == 0) retval = lhs.getRecordReadName().compareTo(rhs.getRecordReadName());
+
+                return retval;
+            }
+        }
+
+        private int toMarkQueueMinimumDistance = -1;
+
+        private int numDuplicates = 0;
+
+        /** The set of all read ends sorted by 5' start unclipped position.  Some read ends in this set may eventually be duplicates. */
+        private final TreeSet<ReadEndsMC> set = new TreeSet<ReadEndsMC>(new MarkQueueComparator());
+
+        /** Physical locations used for optical duplicate tracking.  This is only stored for paired end reads where both ends are mapped,
+         * and when we see the first mate.
+         */
+        private final Map<ReadEndsMC, Set<PhysicalLocationMC>> locations = new HashMap<ReadEndsMC, Set<PhysicalLocationMC>>();
+
+        /** If we have two items that are the same with respect to being in the "set", then we must choose one.  The "one" will
+         * eventually be the end that is not marked as a duplicate in most cases (see poll() for the exceptions).
+         */
+        private final Comparator<ReadEndsMC> comparator = new ReadEndsMCComparator();
+
+        /** temporary so we do not need to create many objects */
+        private ReadEndsMC tmpReadEnds = null;
+
+        public MarkQueue() {
+        }
+
+        public int getNumDuplicates() { return this.numDuplicates; }
+
+        public int size() {
+            return this.set.size();
+        }
+
+        public boolean isEmpty() {
+            return this.set.isEmpty();
+        }
+
+        public void setToMarkQueueMinimumDistance(final int toMarkQueueMinimumDistance) {
+            this.toMarkQueueMinimumDistance = toMarkQueueMinimumDistance;
+        }
+
+        public int getToMarkQueueMinimumDistance() { return this.toMarkQueueMinimumDistance; }
+
+        /** For tracking optical duplicates */
+        public Set<PhysicalLocationMC> getLocations(final ReadEndsMC current) {
+            // NB: only needed for pairs!!!
+            if (!current.isPaired() || 0 != current.hasUnmapped) throw new NotImplementedException();
+            return this.locations.remove(current);
+        }
+
+        public ReadEndsMC peek() {
+            return this.set.first();
+        }
+
+        /**
+         * The poll method will return the read end that is *not* the duplicate of all comparable read ends that
+         * have been seen.  All comparable read ends and the returned read end will have their seen duplicate flag set.
+         *
+         * NB: we must remove all fragments or unpaireds if this is a mapped pair
+         * NB: we must remove all fragments if this is an unpaired
+         */
+        public ReadEndsMC poll() {
+            final ReadEndsMC current = this.set.pollFirst();
+
+            // If we are a paired read end, we need to make sure we remove unpaired (if we are not also unpaired), as
+            // well as fragments from the set, as they should all be duplicates.
+            if (current.isPaired()) {
+                // NB: only care about read1Sequence, read1Coordinate, and orientation in the set
+                if (null == this.tmpReadEnds) { // initialize
+                    this.tmpReadEnds = new ReadEndsMC(header, new DuplicateMarkedSAMRecord(current.getRecord()));
+                    this.tmpReadEnds.read2Sequence = this.tmpReadEnds.read2Coordinate = -1;
+                    this.tmpReadEnds.record = null;
+                    this.tmpReadEnds.wrappedRecord = null;
+                }
+                else {
+                    this.tmpReadEnds.read1Sequence = current.read1Sequence;
+                    this.tmpReadEnds.read1Coordinate = current.read1Coordinate;
+                }
+
+                // remove from the set fragments and unpaired, which only have two possible orientations
+                for (final byte orientation : new byte[]{ReadEnds.F, ReadEnds.R}) { // go through non-paired (both mapped) orientations
+                    this.tmpReadEnds.orientation = orientation;
+                    if (this.set.contains(this.tmpReadEnds)) { // found in the set
+                        // get the duplicate read end
+                        final SortedSet<ReadEndsMC> sortedSet = this.set.subSet(this.tmpReadEnds, true, this.tmpReadEnds, true);
+                        if (1 != sortedSet.size()) throw new PicardException("SortedSet should have size one (has size " + sortedSet.size() + " )");
+                        final ReadEndsMC duplicate = sortedSet.first();
+
+                        // mark as duplicate and set that it has been through duplicate marking
+                        duplicate.getRecord().setDuplicateReadFlag(true);
+                        duplicate.setHasBeenMarkedFlag();
+
+                        // remove from the set
+                        this.set.remove(this.tmpReadEnds);
+
+                        // count the duplicate metrics
+                        final DuplicationMetrics metrics = getMetrics(duplicate.getRecord());
+                        // Update the duplication metrics
+                        if (!duplicate.getRecord().getReadPairedFlag() || duplicate.getRecord().getMateUnmappedFlag()) {
+                            ++metrics.UNPAIRED_READ_DUPLICATES;
+                        }
+                        else {
+                            ++metrics.READ_PAIR_DUPLICATES;// will need to be divided by 2 at the end
+                        }
+                        this.numDuplicates++;
+                    }
+                }
+            }
+
+            // this read end is now ok to be outputted
+            current.setHasBeenMarkedFlag();
+
+            return current;
+        }
+
+        public void add(final ReadEndsMC other) {
+            Set<PhysicalLocationMC> locationSet = null;
+            ReadEndsMC duplicate = null;
+
+            // 1. check the queue if there exists one at the location, if so compare and keep the best.
+            // 2. add physical location info if paired
+            if (this.set.contains(other)) { // already in the set
+                final SortedSet<ReadEndsMC> sortedSet = this.set.subSet(other, true, other, true);
+                if (1 != sortedSet.size()) throw new PicardException("SortedSet should have size one (has size " + sortedSet.size() + " )");
+                final ReadEndsMC current = sortedSet.first();
+
+                // compare "current: with "other"
+                final int comparison = this.comparator.compare(current, other); // if we are to re-add, then other should make this > 0
+
+                if (0 < comparison) { // re-add
+                    if (current.isPaired() && 0 == current.hasUnmapped) {
+                        locationSet = this.locations.remove(current);
+                    }
+                    else {
+                        locationSet = new HashSet<PhysicalLocationMC>();
+                    }
+                    this.locations.put(other, locationSet);
+                    this.set.remove(current);
+                    this.set.add(other);
+
+                    // current is a now duplicate :/
+                    current.getRecord().setDuplicateReadFlag(true);
+                    duplicate = current;
+                    current.setHasBeenMarkedFlag();
+                }
+                else { // keep current
+                    if (current.isPaired() && 0 == current.hasUnmapped) {
+                        locationSet = this.locations.get(current);
+                    }
+                    // NB: else is technically not needed, since if this was not paired and the other one was, we would enter here and add it later
+
+                    if (0 != comparison) {
+                        // other is a duplicate :/
+                        other.getRecord().setDuplicateReadFlag(true);
+                        duplicate = other;
+                    }
+                    other.setHasBeenMarkedFlag();
+                }
+            }
+            else { // not in the set
+                if (other.isPaired() && 0 == other.hasUnmapped) {
+                    locationSet = new HashSet<PhysicalLocationMC>();
+                    this.locations.put(other, locationSet);
+                }
+                this.set.add(other);
+            }
+
+            // add to the physical locations
+            final SAMRecord record = other.getRecord();
+            if (record.getReadPairedFlag()
+                    && !record.getReadUnmappedFlag()
+                    && !record.getMateUnmappedFlag()
+                    && record.getFirstOfPairFlag()) { // only first of pairs!
+                if (null != locationSet) locationSet.add(new PhysicalLocationMC(other)); // the null check is not needed.
+            }
+
+            if (null != duplicate) {
+                // count the duplicate metrics
+                final DuplicationMetrics metrics = getMetrics(duplicate.getRecord());
+
+                if (duplicate.getRecord().getDuplicateReadFlag()) {
+                    // Update the duplication metrics
+                    if (!duplicate.getRecord().getReadPairedFlag() || duplicate.getRecord().getMateUnmappedFlag()) {
+                        ++metrics.UNPAIRED_READ_DUPLICATES;
+                    }
+                    else {
+                        ++metrics.READ_PAIR_DUPLICATES;// will need to be divided by 2 at the end
+                    }
+                }
+                this.numDuplicates++;
+            }
         }
     }
 }

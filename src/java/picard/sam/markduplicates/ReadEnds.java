@@ -54,6 +54,10 @@ abstract class ReadEnds implements OpticalDuplicateFinder.PhysicalLocation {
     public short getY() { return this.y; }
     public void setY(final short y) { this.y = y; }
 
+
+    public short getLibraryId() { return this.libraryId; }
+    public void setLibraryId(short libraryId) { this.libraryId = libraryId; }
+
     /**
      * Returns a single byte that encodes the orientation of the two reads in a pair.
      */
