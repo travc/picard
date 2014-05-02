@@ -108,14 +108,17 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
                 this.REMOVE_DUPLICATES,
                 this.SCORING_STRATEGY,
                 this.SKIP_PAIRS_WITH_NO_MATE_CIGAR,
-                this.MAX_RECORDS_IN_RAM);
+                this.MAX_RECORDS_IN_RAM,
+                this.TMP_DIR);
 
         // progress logger!
         final ProgressLogger progress = new ProgressLogger(log, (int) 1e6, "Read");
 
         // Go through the records
         for (final SAMRecord record : new IterableAdapter<SAMRecord>(iterator)) {
-            progress.record(record);
+            if (progress.record(record)) {
+                iterator.logMemoryStats(log);
+            }
 
             // Update the program record if necessary
             if (PROGRAM_RECORD_ID != null) {

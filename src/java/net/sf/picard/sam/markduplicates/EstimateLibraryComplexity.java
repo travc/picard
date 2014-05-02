@@ -98,6 +98,7 @@ public class EstimateLibraryComplexity extends AbstractDuplicateFindingAlgorithm
         boolean qualityOk = true;
         byte[] read1;
         byte[] read2;
+        short libraryId;
 
         public short getReadGroup() { return this.readGroup; }
         public void setReadGroup(final short readGroup) { this.readGroup = readGroup; }
@@ -110,6 +111,9 @@ public class EstimateLibraryComplexity extends AbstractDuplicateFindingAlgorithm
 
         public short getY() { return this.y; }
         public void setY(final short y) { this.y = y; }
+
+        public short getLibraryId() { return this.libraryId; }
+        public void setLibraryId(final short libraryId) { this.libraryId = libraryId; }
     }
 
     /**
