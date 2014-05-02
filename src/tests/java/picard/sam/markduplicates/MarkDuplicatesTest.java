@@ -49,7 +49,7 @@ public class MarkDuplicatesTest extends AbstractMarkDuplicateFindingAlgorithmTes
     @Test(dataProvider = "pgRecordChainingTest")
     public void pgRecordChainingTest(final boolean suppressPg,
                                      final Map<String, List<ExpectedPnAndVn>> expectedPnVnByReadName) {
-        final File outputDir = IoUtil.createTempDir(TEST_BASE_NAME + ".", ".tmp");
+        final File outputDir = IOUtil.createTempDir(TEST_BASE_NAME + ".", ".tmp");
         outputDir.deleteOnExit();
         try {
             // Run MarkDuplicates, merging the 3 input files, and either enabling or suppressing PG header

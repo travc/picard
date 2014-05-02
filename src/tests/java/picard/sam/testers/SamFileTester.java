@@ -1,4 +1,4 @@
-package net.sf.picard.sam.testers;
+package picard.sam.testers;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
