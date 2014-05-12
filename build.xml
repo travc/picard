@@ -378,6 +378,7 @@
         <package-and-document-command title="IntervalListTools"                 main-class="picard.util.IntervalListTools"/>
         <package-and-document-command title="MakeSitesOnlyVcf"                  main-class="picard.vcf.MakeSitesOnlyVcf"/>
         <package-and-document-command title="MarkDuplicates"                    main-class="picard.sam.MarkDuplicates"/>
+        <package-and-document-command title="MarkDuplicatesWithMateCigar"    main-class="picard.sam.markduplicates.MarkDuplicatesWithMateCigar"/>
         <package-and-document-command title="MeanQualityByCycle"                main-class="picard.analysis.MeanQualityByCycle"/>
         <package-and-document-command title="MergeBamAlignment"                 main-class="picard.sam.MergeBamAlignment"/>
         <package-and-document-command title="MergeSamFiles"                     main-class="picard.sam.MergeSamFiles"/>

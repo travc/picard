@@ -24,7 +24,7 @@
 package picard.sam.markduplicates;
 
 import picard.PicardException;
-import picard.sam.CoordinateSortedPairInfoMap;
+import htsjdk.samtools.CoordinateSortedPairInfoMap;
 
 import java.io.*;
 import java.util.*;

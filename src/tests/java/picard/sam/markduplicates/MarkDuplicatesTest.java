@@ -1,7 +1,7 @@
 package picard.sam.markduplicates;
 
 import htsjdk.samtools.util.IOUtil;
-import net.sf.samtools.*;
+import htsjdk.samtools.*;
 import htsjdk.samtools.util.TestUtil;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
