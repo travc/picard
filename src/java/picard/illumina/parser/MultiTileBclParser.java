@@ -38,6 +38,7 @@ import java.util.NoSuchElementException;
 public class MultiTileBclParser extends BclParser {
     private final TileIndex tileIndex;
     private MultiTileBclDataCycleFileParser cycleFileParser = null;
+
     public MultiTileBclParser(final File directory, final int lane, final CycleIlluminaFileMap tilesToCycleFiles,
                               final OutputMapping outputMapping, final boolean applyEamssFilter,
                               final BclQualityEvaluationStrategy bclQualityEvaluationStrategy,
@@ -48,19 +49,18 @@ public class MultiTileBclParser extends BclParser {
     }
 
     @Override
-    public void initialize(){
-        if(tileIndex != null){
+    public void initialize() {
+        if (tileIndex != null) {
             seekToTile(currentTile);
         }
     }
 
     private CountLimitedIterator makeReader(final List<File> files) {
-        if(tileIndex != null) {
+        if (tileIndex != null) {
             final BclReader bclReader = BclReader.makeSeekable(files, bclQualityEvaluationStrategy, outputMapping.getOutputReadLengths());
             final int numClustersInTile = bclReader.seek(files, tileIndex, currentTile);
             return new CountLimitedIterator(bclReader, numClustersInTile);
-        }
-        else{
+        } else {
             return null;
         }
     }
@@ -150,7 +150,12 @@ public class MultiTileBclParser extends BclParser {
             }
         }
 
-        public int getCurrentTile(){
+        @Override
+        public int getNumClusters() {
+            return reader.recordLimit;
+        }
+
+        public int getCurrentTile() {
             return currentTile;
         }
 

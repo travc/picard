@@ -53,9 +53,11 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -67,6 +69,8 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * @param <CLUSTER_OUTPUT_RECORD> The class to which a ClusterData is converted in preparation for writing.
  */
 public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
+    private final int maxReadsInRamPerTile;
+
     /**
      * Describes the state of a barcode's data's processing in the context of a tile.  It is either not available in
      * that tile, has been read, has been queued to be written to file, or has been written to file.  A barcode only
@@ -120,7 +124,7 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
 
     private final BclQualityEvaluationStrategy bclQualityEvaluationStrategy;
     private final Map<String, ? extends ConvertedClusterDataWriter<CLUSTER_OUTPUT_RECORD>> barcodeRecordWriterMap;
-    private final int maxReadsInRamPerTile;
+    private final int maxReadsInRamAcrossTiles;
     private final boolean demultiplex;
     private final List<File> tmpDirs;
     private final IlluminaDataProviderFactory factory;
@@ -144,7 +148,7 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
      * @param barcodeRecordWriterMap Map from barcode to CLUSTER_OUTPUT_RECORD writer.  If demultiplex is false, must contain
      *                               one writer stored with key=null.
      * @param demultiplex            If true, output is split by barcode, otherwise all are written to the same output stream.
-     * @param maxReadsInRamPerTile   Configures number of reads each tile will store in RAM before spilling to disk.
+     * @param maxReadsInRam          Configures number of total reads that all tiles will store in RAM before spilling to disk.
      * @param tmpDirs                For SortingCollection spilling.
      * @param numProcessors          Controls number of threads.  If <= 0, the number of threads allocated is
      *                               available cores - numProcessors.
@@ -159,6 +163,7 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
     public IlluminaBasecallsConverter(final File basecallsDir, final int lane, final ReadStructure readStructure,
                                       final Map<String, ? extends ConvertedClusterDataWriter<CLUSTER_OUTPUT_RECORD>> barcodeRecordWriterMap,
                                       final boolean demultiplex,
+                                      final int maxReadsInRam,
                                       final int maxReadsInRamPerTile,
                                       final List<File> tmpDirs,
                                       final int numProcessors, final boolean forceGc,
@@ -229,6 +234,12 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
         }
 
         this.numThreads = Math.max(1, Math.min(this.numThreads, tiles.size()));
+        //at most we might have numThreads disk based threads so subtract reads in ram per tile for disk based reading from the max total
+        int maxRamRecords = maxReadsInRam - (numThreads * maxReadsInRamPerTile);
+        if (maxRamRecords < 0) {
+            maxRamRecords = 0;
+        }
+        this.maxReadsInRamAcrossTiles = maxRamRecords;
     }
 
     /**
@@ -360,6 +371,8 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
         final private Map<String, TileBarcodeProcessingState> barcodeToProcessingState = new HashMap<String, TileBarcodeProcessingState>();
         private TileProcessingState state = TileProcessingState.NOT_DONE_READING;
         private long recordCount = 0;
+        private int maxRamRecords;
+        private boolean areAllRecordsInRam = false;
 
         /**
          * Returns the state of this tile's processing.
@@ -394,14 +407,11 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
         }
 
         private synchronized SortingCollection<CLUSTER_OUTPUT_RECORD> newSortingCollection() {
-            final int maxRecordsInRam =
-                    maxReadsInRamPerTile /
-                            barcodeRecordWriterMap.size();
             return SortingCollection.newInstance(
                     outputRecordClass,
                     codecPrototype.clone(),
                     outputRecordComparator,
-                    maxRecordsInRam,
+                    maxRamRecords,
                     tmpDirs);
         }
 
@@ -470,6 +480,18 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
         public synchronized Set<String> getBarcodes() {
             return this.getBarcodeRecords().keySet();
         }
+
+        public void setMaxRamRecords(final int maxRamRecords) {
+            this.maxRamRecords = maxRamRecords;
+        }
+
+        public boolean areAllRecordsInRam() {
+            return this.areAllRecordsInRam;
+        }
+
+        public void setAreAllRecordsInRam(final boolean areAllRecordsInRam) {
+            this.areAllRecordsInRam = areAllRecordsInRam;
+        }
     }
 
     /**
@@ -480,11 +502,14 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
         private final Tile tile;
         private final TileReadAggregator handler;
         private final TileProcessingRecord processingRecord;
+        private final IlluminaDataProvider dataProvider;
 
-        public TileReader(final Tile tile, final TileReadAggregator handler, final TileProcessingRecord processingRecord) {
+        public TileReader(final Tile tile, final TileReadAggregator handler, final TileProcessingRecord processingRecord,
+                          final IlluminaDataProvider dataProvider) {
             this.tile = tile;
             this.handler = handler;
             this.processingRecord = processingRecord;
+            this.dataProvider = dataProvider;
         }
 
         /**
@@ -492,9 +517,7 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
          * this tile.
          */
         public void process() {
-            final IlluminaDataProvider dataProvider = factory.makeDataProvider(Arrays.asList(this.tile.getNumber()));
             log.debug(String.format("Reading data from tile %s ...", tile.getNumber()));
-
             while (dataProvider.hasNext()) {
                 final ClusterData cluster = dataProvider.next();
                 readProgressLogger.record(null, 0);
@@ -502,11 +525,27 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                 if (cluster.isPf() || includeNonPfReads) {
                     final String barcode = (demultiplex ? cluster.getMatchedBarcode() : null);
                     this.processingRecord.addRecord(barcode, converter.convertClusterToOutputRecord(cluster));
+                } else {
+                    if (processingRecord.areAllRecordsInRam()) {
+                        handler.ramRecordsAllocated.getAndDecrement();
+                    }
                 }
             }
 
             this.handler.completeTile(this.tile);
             dataProvider.close();
+        }
+
+        public void setMaxRamRecords(final int maxRamRecords) {
+            processingRecord.setMaxRamRecords(maxRamRecords);
+        }
+
+        public void setAreAllRecordsInRam(final boolean areAllRecordsInRam) {
+            processingRecord.setAreAllRecordsInRam(areAllRecordsInRam);
+        }
+
+        public int getNumClusters() {
+            return dataProvider.getNumClusters();
         }
     }
 
@@ -523,29 +562,14 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
          */
         private final Map<Tile, TileProcessingRecord> tileRecords = new TreeMap<Tile, TileProcessingRecord>();
 
+        private final AtomicLong ramRecordsAllocated = new AtomicLong(0);
+
         /**
          * The executor responsible for doing work.
-         * <p/>
-         * Implemented as a ThreadPoolExecutor with a PriorityBlockingQueue which orders submitted Runnables by their
-         * priority.
          */
-        private final ExecutorService prioritizingThreadPool = new ThreadPoolExecutor(
-                numThreads,
-                numThreads,
-                0L,
-                MILLISECONDS,
-                new PriorityBlockingQueue<Runnable>(5, new Comparator<Runnable>() {
-                    @Override
-                    /**
-                     * Compare the two Runnables, and assume they are PriorityRunnable; if not something strange is
-                     * going on, so allow a ClassCastException be thrown.
-                     */
-                    public int compare(final Runnable o1, final Runnable o2) {
-                        // Higher priority items go earlier in the queue, so reverse the "natural" comparison.
-                        return ((PriorityRunnable) o2).getPriority() - ((PriorityRunnable) o1).getPriority();
-                    }
-                })
-        );
+        private final ExecutorService prioritizingThreadPool = Executors.newFixedThreadPool(numThreads);
+
+        private final ExecutorService blockingWriteThreadPool = Executors.newSingleThreadExecutor();
 
         /**
          * The object acting as a latch to notify when the aggregator completes its work.
@@ -592,28 +616,52 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
              * (more negative) priority.
              */
             int priority = 0;
+
+
             for (final Tile tile : this.tileRecords.keySet()) {
-                final TileReader reader = new TileReader(tile, this, this.tileRecords.get(tile));
-                this.prioritizingThreadPool.execute(new PriorityRunnable(--priority) {
-                    @Override
-                    public void run() {
-                        try {
-                            reader.process();
-                        } catch (final RuntimeException e) {
-                            /**
-                             * In the event of an internal failure, signal to the parent thread that something has gone
-                             * wrong.  This is necessary because if an item of work fails to complete, the aggregator will
-                             * will never reach its completed state, and it will never terminate.
-                             */
-                            parentThread.interrupt();
-                            throw e;
-                        } catch (final Error e) {
-                            parentThread.interrupt();
-                            throw e;
-                        }
-                    }
-                });
+                final IlluminaDataProvider dataProvider = factory.makeDataProvider(Collections.singletonList(tile.tileNumber));
+                final TileReader reader = new TileReader(tile, this, this.tileRecords.get(tile), dataProvider);
+                priority = queueTask(priority, reader);
             }
+        }
+
+        private int queueTask(int priority, final TileReader reader) {
+            this.prioritizingThreadPool.execute(new PriorityRunnable(--priority) {
+                @Override
+                public void run() {
+                    try {
+                        final long recordsLeft = maxReadsInRamAcrossTiles - ramRecordsAllocated.get();
+                        //if there is enough room in ram for all these records and still achieve expected parallelization then spawn a
+                        //thread that will read all records in to ram otherwise spawn a thread with disk based records
+                        if (reader.getNumClusters() <= recordsLeft) {
+                            log.info(String.format("Enough free records to spawn a new read thread. %d allowed %d allocated %d left for %d clusters",
+                                    maxReadsInRamAcrossTiles, ramRecordsAllocated.get(), recordsLeft, reader.getNumClusters()));
+                            reader.setMaxRamRecords(reader.getNumClusters());
+                            reader.setAreAllRecordsInRam(true);
+                            ramRecordsAllocated.getAndAdd(reader.getNumClusters());
+                        } else {
+                            log.info(String.format("Not enough free records to spawn an in memory read thread. %d allowed %d allocated %d left for %d clusters",
+                                    maxReadsInRamAcrossTiles, ramRecordsAllocated.get(), recordsLeft, reader.getNumClusters()));
+                            reader.setMaxRamRecords(maxReadsInRamPerTile);
+                            reader.setAreAllRecordsInRam(false);
+                        }
+
+                        reader.process();
+                    } catch (final RuntimeException e) {
+                        /**
+                         * In the event of an internal failure, signal to the parent thread that something has gone
+                         * wrong.  This is necessary because if an item of work fails to complete, the aggregator will
+                         * will never reach its completed state, and it will never terminate.
+                         */
+                        parentThread.interrupt();
+                        throw e;
+                    } catch (final Error e) {
+                        parentThread.interrupt();
+                        throw e;
+                    }
+                }
+            });
+            return priority;
         }
 
         /**
@@ -679,7 +727,6 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                 } else {
                     final Queue<Runnable> tasks = new LinkedList<Runnable>();
                     for (final String barcode : barcodeRecordWriterMap.keySet()) {
-                        NEXT_BARCODE:
                         for (final Map.Entry<Tile, TileProcessingRecord> entry : this.tileRecords.entrySet()) {
                             final Tile tile = entry.getKey();
                             final TileProcessingRecord tileRecord = entry.getValue();
@@ -705,7 +752,7 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                                      * The write for this barcode is in progress for this tile, so skip to the next
                                      * barcode.
                                      */
-                                    break NEXT_BARCODE;
+                                    continue;
                                 case READ:
                                     /**
                                      * This barcode has been read, and all of the earlier tiles have been written
@@ -713,14 +760,14 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                                      */
                                     tileRecord.setBarcodeState(barcode, TileBarcodeProcessingState.QUEUED_FOR_WRITE);
                                     log.debug(String.format("Enqueuing work for tile %s and barcode %s.", tile.getNumber(), barcode));
+                                    tileRecord.barcodeToRecordCollection.get(barcode).doneAdding();
                                     tasks.add(this.newBarcodeWorkInstance(tile, tileRecord, barcode));
-                                    break NEXT_BARCODE;
                             }
                         }
                     }
 
                     for (final Runnable task : tasks) {
-                        this.prioritizingThreadPool.execute(task);
+                        this.blockingWriteThreadPool.execute(task);
                     }
                 }
             }
@@ -748,7 +795,10 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                         final PeekIterator<CLUSTER_OUTPUT_RECORD> it = new PeekIterator<CLUSTER_OUTPUT_RECORD>(records.iterator());
                         while (it.hasNext()) {
                             final CLUSTER_OUTPUT_RECORD rec = it.next();
-
+                            //since we are using a destructive iterator we can free up a memory record after the next
+                            if (tileRecord.areAllRecordsInRam()) {
+                                ramRecordsAllocated.getAndDecrement();
+                            }
                             /**
                              * PIC-330 Sometimes there are two reads with the same cluster coordinates, and thus
                              * the same read name.  Discard both of them.  This code assumes that the two first of pairs
@@ -767,6 +817,10 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
 
                                 if (outputRecordComparator.compare(rec, lookAhead) == 0) {
                                     it.next();
+
+                                    if (tileRecord.areAllRecordsInRam()) {
+                                        ramRecordsAllocated.getAndDecrement();
+                                    }
                                     log.info("Skipping reads with identical read names: " + rec.toString());
                                     continue;
                                 }
@@ -775,10 +829,8 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                             writer.write(rec);
                             writeProgressLogger.record(null, 0);
                         }
-
                         tileRecord.setBarcodeState(barcode, TileBarcodeProcessingState.WRITTEN);
                         findAndEnqueueWorkOrSignalCompletion();
-
                     } catch (final RuntimeException e) {
                         /**
                          * In the event of an internal failure, signal to the parent thread that something has gone
@@ -813,7 +865,7 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                     for (final Map.Entry<String, TileBarcodeProcessingState> barcodeStateEntry : tileProcessingRecord.getBarcodeProcessingStates().entrySet()) {
                         final TileBarcodeProcessingState barcodeProcessingState = barcodeStateEntry.getValue();
                         if (barcodeProcessingState != TileBarcodeProcessingState.WRITTEN) {
-                            log.debug(String.format("Work is not completed because a tile isn't done being read: Tile %s, Barcode %s, Processing State %s.", entry.getKey().getNumber(), barcodeStateEntry.getKey(), barcodeProcessingState));
+                            log.debug(String.format("Work is not completed because a tile isn't done being written: Tile %s, Barcode %s, Processing State %s.", entry.getKey().getNumber(), barcodeStateEntry.getKey(), barcodeProcessingState));
                             return false;
                         }
                     }

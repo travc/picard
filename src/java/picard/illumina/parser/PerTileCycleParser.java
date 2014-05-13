@@ -88,7 +88,7 @@ abstract class PerTileCycleParser<ILLUMINA_DATA extends IlluminaData> implements
     /**
      * For a given cycle, return a CycleFilesParser.
      *
-     * @param file       The file to parse
+     * @param file The file to parse
      * @return A CycleFilesParser that will populate the correct position in the IlluminaData object with that cycle's data.
      */
     protected abstract CycleFilesParser<ILLUMINA_DATA> makeCycleFileParser(final List<File> file);
@@ -107,6 +107,8 @@ abstract class PerTileCycleParser<ILLUMINA_DATA extends IlluminaData> implements
         public ILLUMINA_DATA next();
 
         public boolean hasNext();
+
+        public int getNumClusters();
     }
 
     /**
@@ -118,7 +120,7 @@ abstract class PerTileCycleParser<ILLUMINA_DATA extends IlluminaData> implements
     public void seekToTile(final int tile) {
         currentTile = tile;
 
-        if(cycleFilesParser != null) {
+        if (cycleFilesParser != null) {
             cycleFilesParser.close();
         }
 
@@ -187,6 +189,10 @@ abstract class PerTileCycleParser<ILLUMINA_DATA extends IlluminaData> implements
             tiles = new ArrayList<Integer>(this.cyclesToTileFiles.keySet());
         }
         this.cyclesToTileFiles.assertValid(tiles, cycles);
+    }
+
+    public int getNumClusters() {
+        return cycleFilesParser.getNumClusters();
     }
 
     public void remove() {

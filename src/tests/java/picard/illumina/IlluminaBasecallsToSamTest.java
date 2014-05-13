@@ -91,16 +91,16 @@ public class IlluminaBasecallsToSamTest {
 
     /**
      * Ensures that a run missing a barcode from the parameters file throws an error.
-     * 
+     * <p/>
      * TODO: This testcase isn't broken, but can spawn an issue with FileChannelJDKBugWorkAround since it expects
      * an exception to be thrown.
      */
-    @Test(groups={"broken"})
+    @Test(groups = {"broken"})
     public void testCorruptDataReturnCode() throws Exception {
         boolean exceptionThrown = false;
         try {
             runStandardTest(9, "dualBarcode.", "negative_test.params", 2, "30T8B8B", BASECALLS_DIR, TEST_DATA_DIR);
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             exceptionThrown = true;
         } finally {
             Assert.assertTrue(exceptionThrown);

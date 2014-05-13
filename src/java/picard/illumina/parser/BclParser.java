@@ -291,5 +291,10 @@ class BclParser extends PerTileCycleParser<BclData> {
                 return false;
             }
         }
+
+        @Override
+        public int getNumClusters() {
+            return ((BclReader) reader).getNumberOfClusters();
+        }
     }
 }

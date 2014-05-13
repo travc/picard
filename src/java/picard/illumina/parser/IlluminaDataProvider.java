@@ -61,6 +61,8 @@ public class IlluminaDataProvider implements Iterator<ClusterData>, Iterable<Clu
     /** Number of reads in each ClusterData */
     private final int numReads;
 
+    private int numClusters = 0;
+
     /**
      * Create an IlluminaDataProvider given a map of parsersToDataTypes for particular file formats.  Compute once the miscellaneous data for the
      * run that will be passed to each ClusterData.
@@ -84,7 +86,11 @@ public class IlluminaDataProvider implements Iterator<ClusterData>, Iterable<Clu
         parsers = new IlluminaParser[numParsers];
         dataTypes = new IlluminaDataType[numParsers][];
         for (final Map.Entry<IlluminaParser, Set<IlluminaDataType>> pToD : parsersToDataTypes.entrySet()) {
-            parsers[i] = pToD.getKey();
+            final IlluminaParser parser = pToD.getKey();
+            parsers[i] = parser;
+            if (parser instanceof BclParser) {
+                numClusters = ((BclParser) parser).getNumClusters();
+            }
             final Set<IlluminaDataType> dts = pToD.getValue();
             dataTypes[i] = new IlluminaDataType[dts.size()];
             dts.toArray(dataTypes[i++]);
@@ -192,20 +198,6 @@ public class IlluminaDataProvider implements Iterator<ClusterData>, Iterable<Clu
         }
     }
 
-    private void addReadData(final ClusterData clusterData, final int numReads, final RawIntensityData rawIntensityData) {
-        final FourChannelIntensityData[] fcids = rawIntensityData.getRawIntensities();
-        for (int i = 0; i < numReads; i++) {
-            clusterData.getRead(i).setRawIntensities(fcids[i]);
-        }
-    }
-
-    private void addReadData(final ClusterData clusterData, final int numReads, final NoiseData noiseData) {
-        final FourChannelIntensityData[] fcids = noiseData.getNoise();
-        for (int i = 0; i < numReads; i++) {
-            clusterData.getRead(i).setNoise(fcids[i]);
-        }
-    }
-
     public void remove() {
         throw new UnsupportedOperationException();
     }
@@ -226,5 +218,9 @@ public class IlluminaDataProvider implements Iterator<ClusterData>, Iterable<Clu
         for (final IlluminaParser parser : parsers) {
             parser.close();
         }
+    }
+
+    public int getNumClusters() {
+        return numClusters;
     }
 }

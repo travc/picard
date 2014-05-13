@@ -69,6 +69,11 @@ public class PerTilePerCycleParserTest {
                 public boolean hasNext() {
                     return currentCycle < MAX_CYCLE;
                 }
+
+                @Override
+                public int getNumClusters() {
+                    return 20;
+                }
             };
         }
 

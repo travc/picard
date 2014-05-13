@@ -71,10 +71,10 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
     @Usage
     public String USAGE =
             getStandardUsagePreamble() + "Generate fastq file(s) from data in an Illumina basecalls output directory.\n" +
-            "Separate fastq file(s) are created for each template read, and for each barcode read, in the basecalls.\n" +
-            "Template fastqs have extensions like .<number>.fastq, where <number> is the number of the template read,\n" +
-            "starting with 1.  Barcode fastqs have extensions like .barcode_<number>.fastq, where <number> is the number\n" +
-            "of the barcode read, starting with 1.";
+                    "Separate fastq file(s) are created for each template read, and for each barcode read, in the basecalls.\n" +
+                    "Template fastqs have extensions like .<number>.fastq, where <number> is the number of the template read,\n" +
+                    "starting with 1.  Barcode fastqs have extensions like .barcode_<number>.fastq, where <number> is the number\n" +
+                    "of the barcode read, starting with 1.";
 
     @Option(doc = "The basecalls directory. ", shortName = "B")
     public File BASECALLS_DIR;
@@ -94,10 +94,10 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
 
     @Option(doc = "The name of the machine on which the run was sequenced; required if emitting Casava1.8-style read name headers", optional = true)
     public String MACHINE_NAME;
-    
+
     @Option(doc = "The barcode of the flowcell that was sequenced; required if emitting Casava1.8-style read name headers", optional = true)
     public String FLOWCELL_BARCODE;
-    
+
     @Option(doc = ReadStructure.PARAMETER_DOC, shortName = "RS")
     public String READ_STRUCTURE;
 
@@ -113,12 +113,13 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
             Arrays.asList(IlluminaUtil.IlluminaAdapterPair.INDEXED,
                     IlluminaUtil.IlluminaAdapterPair.DUAL_INDEXED,
                     IlluminaUtil.IlluminaAdapterPair.NEXTERA_V2,
-                    IlluminaUtil.IlluminaAdapterPair.FLUIDIGM));
+                    IlluminaUtil.IlluminaAdapterPair.FLUIDIGM)
+    );
 
     @Option(doc = "The number of threads to run in parallel. If NUM_PROCESSORS = 0, number of cores is automatically set to " +
             "the number of cores available on the machine. If NUM_PROCESSORS < 0, then the number of cores used will" +
             " be the number available on the machine less NUM_PROCESSORS.")
-    public Integer NUM_PROCESSORS = 0;
+    public final Integer NUM_PROCESSORS = 0;
 
     @Option(doc = "If set, this is the first tile to be processed (used for debugging).  Note that tiles are not processed" +
             " in numerical order.",
@@ -128,34 +129,34 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
     @Option(doc = "If set, process no more than this many tiles (used for debugging).", optional = true)
     public Integer TILE_LIMIT;
 
-    @Option(doc="Apply EAMSS filtering to identify inappropriately quality scored bases towards the ends of reads" +
+    @Option(doc = "Apply EAMSS filtering to identify inappropriately quality scored bases towards the ends of reads" +
             " and convert their quality scores to Q2.")
-    public boolean APPLY_EAMSS_FILTER = true;
+    public final boolean APPLY_EAMSS_FILTER = true;
 
     @Option(doc = "If true, call System.gc() periodically.  This is useful in cases in which the -Xmx value passed " +
             "is larger than the available memory.")
-    public Boolean FORCE_GC = true;
+    public final Boolean FORCE_GC = true;
 
     @Option(doc = "Configure SortingCollections to store this many records before spilling to disk. For an indexed" +
             " run, each SortingCollection gets this value/number of indices.")
-    public int MAX_READS_IN_RAM_PER_TILE = 1200000;
+    public final int MAX_READS_IN_RAM_PER_TILE = 1200000;
 
-    @Option(doc="The minimum quality (after transforming 0s to 1s) expected from reads.  If qualities are lower than this value, an error is thrown." +
+    @Option(doc = "The minimum quality (after transforming 0s to 1s) expected from reads.  If qualities are lower than this value, an error is thrown." +
             "The default of 2 is what the Illumina's spec describes as the minimum, but in practice the value has been observed lower.")
-    public int MINIMUM_QUALITY = BclQualityEvaluationStrategy.ILLUMINA_ALLEGED_MINIMUM_QUALITY;
+    public final int MINIMUM_QUALITY = BclQualityEvaluationStrategy.ILLUMINA_ALLEGED_MINIMUM_QUALITY;
 
-    @Option(doc="Whether to include non-PF reads", shortName="NONPF", optional=true)
-    public boolean INCLUDE_NON_PF_READS = true;
+    @Option(doc = "Whether to include non-PF reads", shortName = "NONPF", optional = true)
+    public final boolean INCLUDE_NON_PF_READS = true;
 
-    @Option(doc="The read name header formatting to emit.  Casava1.8 formatting has additional information beyond Illumina, including: " +
+    @Option(doc = "The read name header formatting to emit.  Casava1.8 formatting has additional information beyond Illumina, including: " +
             "the passing-filter flag value for the read, the flowcell name, and the sequencer name.", optional = false)
-    public ReadNameFormat READ_NAME_FORMAT = ReadNameFormat.CASAVA_1_8;
+    public final ReadNameFormat READ_NAME_FORMAT = ReadNameFormat.CASAVA_1_8;
 
     /** Simple switch to control the read name format to emit. */
     public enum ReadNameFormat {
         CASAVA_1_8, ILLUMINA
     }
-    
+
     private final Map<String, FastqRecordsWriter> barcodeFastqWriterMap = new HashMap<String, FastqRecordsWriter>();
     private ReadStructure readStructure;
     IlluminaBasecallsConverter<FastqRecordsForCluster> basecallsConverter;
@@ -190,7 +191,7 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
         if (READ_NAME_FORMAT == ReadNameFormat.CASAVA_1_8 && FLOWCELL_BARCODE == null) {
             errors.add("FLOWCELL_BARCODE is required when using Casava1.8-style read name headers.");
         }
-        
+
         if (errors.isEmpty()) {
             return null;
         } else {
@@ -205,13 +206,13 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
         fastqWriterFactory.setCreateMd5(CREATE_MD5_FILE);
         switch (READ_NAME_FORMAT) {
             case CASAVA_1_8:
-                readNameEncoder = new Casava18ReadNameEncoder(MACHINE_NAME, RUN_BARCODE, FLOWCELL_BARCODE);        
+                readNameEncoder = new Casava18ReadNameEncoder(MACHINE_NAME, RUN_BARCODE, FLOWCELL_BARCODE);
                 break;
             case ILLUMINA:
                 readNameEncoder = new IlluminaReadNameEncoder(RUN_BARCODE);
                 break;
         }
-        
+
         final BclQualityEvaluationStrategy bclQualityEvaluationStrategy = new BclQualityEvaluationStrategy(MINIMUM_QUALITY);
         readStructure = new ReadStructure(READ_STRUCTURE);
         if (MULTIPLEX_PARAMS != null) {
@@ -225,19 +226,20 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
             populateWritersFromMultiplexParams();
             demultiplex = true;
         }
-        final int readsPerCluster = readStructure.templates.length() + readStructure.barcodes.length();
         basecallsConverter = new IlluminaBasecallsConverter<FastqRecordsForCluster>(BASECALLS_DIR, LANE, readStructure,
-                barcodeFastqWriterMap, demultiplex, MAX_READS_IN_RAM_PER_TILE/readsPerCluster, TMP_DIR, NUM_PROCESSORS,
+                barcodeFastqWriterMap, demultiplex, MAX_RECORDS_IN_RAM, MAX_READS_IN_RAM_PER_TILE, TMP_DIR, NUM_PROCESSORS,
                 FORCE_GC, FIRST_TILE, TILE_LIMIT, queryNameComparator,
                 new FastqRecordsForClusterCodec(readStructure.templates.length(),
-                readStructure.barcodes.length()), FastqRecordsForCluster.class, bclQualityEvaluationStrategy,
-                this.APPLY_EAMSS_FILTER, INCLUDE_NON_PF_READS);
+                        readStructure.barcodes.length()), FastqRecordsForCluster.class, bclQualityEvaluationStrategy,
+                this.APPLY_EAMSS_FILTER, INCLUDE_NON_PF_READS
+        );
 
         log.info("READ STRUCTURE IS " + readStructure.toString());
 
         basecallsConverter.setConverter(
-		        new ClusterToFastqRecordsForClusterConverter(
-				        basecallsConverter.getFactory().getOutputReadStructure()));
+                new ClusterToFastqRecordsForClusterConverter(
+                        basecallsConverter.getFactory().getOutputReadStructure())
+        );
 
     }
 
@@ -255,7 +257,8 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
             throw new PicardException(String.format(
                     "MULTIPLEX_PARAMS file %s is missing the following columns: %s.",
                     MULTIPLEX_PARAMS.getAbsolutePath(), StringUtil.join(", ", missingColumns
-            )));
+                    )
+            ));
         }
     }
 
@@ -312,11 +315,11 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
         final FastqWriter[] templateWriters = new FastqWriter[readStructure.templates.length()];
         final FastqWriter[] barcodeWriters = new FastqWriter[readStructure.barcodes.length()];
         for (int i = 0; i < templateWriters.length; ++i) {
-            final String filename = String.format("%s.%d.fastq", prefixString, i+1);
+            final String filename = String.format("%s.%d.fastq", prefixString, i + 1);
             templateWriters[i] = fastqWriterFactory.newWriter(new File(outputDir, filename));
         }
         for (int i = 0; i < barcodeWriters.length; ++i) {
-            final String filename = String.format("%s.barcode_%d.fastq", prefixString, i+1);
+            final String filename = String.format("%s.barcode_%d.fastq", prefixString, i + 1);
             barcodeWriters[i] = fastqWriterFactory.newWriter(new File(outputDir, filename));
         }
         return new FastqRecordsWriter(templateWriters, barcodeWriters);
@@ -335,7 +338,7 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
 
         /**
          * @param templateWriters Writers for template reads in order, e,g. 0th element is for template read 1.
-         * @param barcodeWriters Writers for barcode reads in order, e,g. 0th element is for barcode read 1.
+         * @param barcodeWriters  Writers for barcode reads in order, e,g. 0th element is for barcode read 1.
          */
         private FastqRecordsWriter(final FastqWriter[] templateWriters, final FastqWriter[] barcodeWriters) {
             this.templateWriters = templateWriters;
@@ -385,8 +388,8 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
     class ClusterToFastqRecordsForClusterConverter
             implements IlluminaBasecallsConverter.ClusterDataConverter<FastqRecordsForCluster> {
 
-        private final int [] templateIndices;
-        private final int [] barcodeIndices;
+        private final int[] templateIndices;
+        private final int[] barcodeIndices;
 
         ClusterToFastqRecordsForClusterConverter(final ReadStructure outputReadStructure) {
             this.templateIndices = outputReadStructure.templates.getIndices();
@@ -409,8 +412,8 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
                 final String readBases = StringUtil.bytesToString(readData.getBases()).replace('.', 'N');
                 final String readName = readNameEncoder.generateReadName(cluster, appendReadNumberSuffix ? i + 1 : null);
                 recs[i] = new FastqRecord(
-                        readName, 
-                        readBases, 
+                        readName,
+                        readBases,
                         null,
                         SAMUtils.phredToFastq(readData.getQualities())
                 );
@@ -452,7 +455,7 @@ public class IlluminaBasecallsToFastq extends CommandLineProgram {
         }
 
         private void encodeArray(final FastqRecord[] recs) {
-            for (final FastqRecord rec: recs) {
+            for (final FastqRecord rec : recs) {
                 writer.write(rec);
             }
         }

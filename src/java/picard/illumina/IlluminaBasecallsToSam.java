@@ -128,13 +128,13 @@ public class IlluminaBasecallsToSam extends CommandLineProgram {
     public String LIBRARY_NAME;
 
     @Option(doc = "The name of the sequencing center that produced the reads.  Used to set the RG.CN tag.", optional = true)
-    public String SEQUENCING_CENTER = "BI";
+    public final String SEQUENCING_CENTER = "BI";
 
     @Option(doc = "The start date of the run.", optional = true)
     public Date RUN_START_DATE;
 
     @Option(doc = "The name of the sequencing technology that produced the read.", optional = true)
-    public String PLATFORM = "illumina";
+    public final String PLATFORM = "illumina";
 
     @Option(doc = ReadStructure.PARAMETER_DOC, shortName = "RS")
     public String READ_STRUCTURE;
@@ -155,16 +155,17 @@ public class IlluminaBasecallsToSam extends CommandLineProgram {
     public File LIBRARY_PARAMS;
 
     @Option(doc = "Which adapters to look for in the read.")
-    public List<IlluminaAdapterPair> ADAPTERS_TO_CHECK = new ArrayList<IlluminaAdapterPair>(
+    public final List<IlluminaAdapterPair> ADAPTERS_TO_CHECK = new ArrayList<IlluminaAdapterPair>(
             Arrays.asList(IlluminaAdapterPair.INDEXED,
                     IlluminaAdapterPair.DUAL_INDEXED,
                     IlluminaAdapterPair.NEXTERA_V2,
-                    IlluminaAdapterPair.FLUIDIGM));
+                    IlluminaAdapterPair.FLUIDIGM)
+    );
 
     @Option(doc = "The number of threads to run in parallel. If NUM_PROCESSORS = 0, number of cores is automatically set to " +
             "the number of cores available on the machine. If NUM_PROCESSORS < 0, then the number of cores used will" +
             " be the number available on the machine less NUM_PROCESSORS.")
-    public Integer NUM_PROCESSORS = 0;
+    public final Integer NUM_PROCESSORS = 0;
 
     @Option(doc = "If set, this is the first tile to be processed (used for debugging).  Note that tiles are not processed" +
             " in numerical order.",
@@ -176,22 +177,22 @@ public class IlluminaBasecallsToSam extends CommandLineProgram {
 
     @Option(doc = "If true, call System.gc() periodically.  This is useful in cases in which the -Xmx value passed " +
             "is larger than the available memory.")
-    public Boolean FORCE_GC = true;
+    public final Boolean FORCE_GC = true;
 
-    @Option(doc="Apply EAMSS filtering to identify inappropriately quality scored bases towards the ends of reads" +
+    @Option(doc = "Apply EAMSS filtering to identify inappropriately quality scored bases towards the ends of reads" +
             " and convert their quality scores to Q2.")
-    public boolean APPLY_EAMSS_FILTER = true;
+    public final boolean APPLY_EAMSS_FILTER = true;
 
     @Option(doc = "Configure SortingCollections to store this many records before spilling to disk. For an indexed" +
             " run, each SortingCollection gets this value/number of indices.")
-    public int MAX_READS_IN_RAM_PER_TILE = 1200000;
+    public final int MAX_READS_IN_RAM_PER_TILE = 1200000;
 
-    @Option(doc="The minimum quality (after transforming 0s to 1s) expected from reads.  If qualities are lower than this value, an error is thrown." +
+    @Option(doc = "The minimum quality (after transforming 0s to 1s) expected from reads.  If qualities are lower than this value, an error is thrown." +
             "The default of 2 is what the Illumina's spec describes as the minimum, but in practice the value has been observed lower.")
-    public int MINIMUM_QUALITY = BclQualityEvaluationStrategy.ILLUMINA_ALLEGED_MINIMUM_QUALITY;
+    public final int MINIMUM_QUALITY = BclQualityEvaluationStrategy.ILLUMINA_ALLEGED_MINIMUM_QUALITY;
 
-    @Option(doc="Whether to include non-PF reads", shortName="NONPF", optional=true)
-    public boolean INCLUDE_NON_PF_READS = true;
+    @Option(doc = "Whether to include non-PF reads", shortName = "NONPF", optional = true)
+    public final boolean INCLUDE_NON_PF_READS = true;
 
     private final Map<String, SAMFileWriterWrapper> barcodeSamWriterMap = new HashMap<String, SAMFileWriterWrapper>();
     private ReadStructure readStructure;
@@ -231,7 +232,7 @@ public class IlluminaBasecallsToSam extends CommandLineProgram {
         final int numOutputRecords = readStructure.templates.length();
 
         basecallsConverter = new IlluminaBasecallsConverter<SAMRecordsForCluster>(BASECALLS_DIR, LANE, readStructure,
-                barcodeSamWriterMap, true, MAX_READS_IN_RAM_PER_TILE/numOutputRecords, TMP_DIR, NUM_PROCESSORS, FORCE_GC,
+                barcodeSamWriterMap, true, MAX_RECORDS_IN_RAM, MAX_READS_IN_RAM_PER_TILE, TMP_DIR, NUM_PROCESSORS, FORCE_GC,
                 FIRST_TILE, TILE_LIMIT, new QueryNameComparator(), new Codec(numOutputRecords), SAMRecordsForCluster.class,
                 bclQualityEvaluationStrategy, this.APPLY_EAMSS_FILTER, INCLUDE_NON_PF_READS);
 
@@ -262,7 +263,8 @@ public class IlluminaBasecallsToSam extends CommandLineProgram {
             throw new PicardException(String.format(
                     "LIBRARY_PARAMS file %s is missing the following columns: %s.",
                     LIBRARY_PARAMS.getAbsolutePath(), StringUtil.join(", ", missingColumns
-            )));
+                    )
+            ));
         }
 
         final Set<String> remainingColumns = new HashSet<String>(actualCols);
@@ -417,7 +419,7 @@ public class IlluminaBasecallsToSam extends CommandLineProgram {
      * Any options set by command-line parser can be validated.
      *
      * @return null if command line is valid.  If command line is invalid, returns an array of error message
-     *         to be written to the appropriate place.
+     * to be written to the appropriate place.
      */
     @Override
     protected String[] customCommandLineValidation() {
@@ -476,6 +478,7 @@ public class IlluminaBasecallsToSam extends CommandLineProgram {
 
     static class QueryNameComparator implements Comparator<SAMRecordsForCluster> {
         private final SAMRecordQueryNameComparator comparator = new SAMRecordQueryNameComparator();
+
         @Override
         public int compare(final SAMRecordsForCluster s1, final SAMRecordsForCluster s2) {
             return comparator.compare(s1.records[0], s2.records[0]);

@@ -13,29 +13,30 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Describes a mechanism for revising and evaluating qualities read from a BCL file.  This class accumulates observations about low quality
  * scores that it evaluates, so distinct instances should be used for unrelated sets of BCL readers.
- * 
+ * <p/>
  * The mechanism for revising qualities is not configurable.  The qualities that are less than 1 are revised to 1, and other qualities are
  * not affected.
- *
+ * <p/>
  * This class is thread-safe and a single instance can and should be passed to {@link BclReader}s running in separate threads.
- * 
- * To replicate the functionality of {@link BclReader}s prior to the introduction of this class, create a single instance passing 
+ * <p/>
+ * To replicate the functionality of {@link BclReader}s prior to the introduction of this class, create a single instance passing
  * {@link #ILLUMINA_ALLEGED_MINIMUM_QUALITY} to the constructor, and then call {@link #assertMinimumQualities()} once the readers finish
  * their work.
- * 
+ *
  * @author mccowan
  */
 public class BclQualityEvaluationStrategy {
     public static final int ILLUMINA_ALLEGED_MINIMUM_QUALITY = 2;
     private final int minimumRevisedQuality;
     /** A thread-safe defaulting map that injects an AtomicInteger starting at 0 when a uninitialized key is get-ted. */
-    private Map<Byte, AtomicInteger> qualityCountMap = Collections.synchronizedMap(new CollectionUtil.DefaultingMap<Byte, AtomicInteger>(
+    private final Map<Byte, AtomicInteger> qualityCountMap = Collections.synchronizedMap(new CollectionUtil.DefaultingMap<Byte, AtomicInteger>(
             new CollectionUtil.DefaultingMap.Factory<AtomicInteger, Byte>() {
                 @Override
                 public AtomicInteger make(final Byte _) {
                     return new AtomicInteger(0);
                 }
-            }, true));
+            }, true
+    ));
 
     /**
      * @param minimumRevisedQuality The minimum quality that should be seen from revised qualities; controls whether or not an exception
@@ -45,9 +46,13 @@ public class BclQualityEvaluationStrategy {
         this.minimumRevisedQuality = minimumRevisedQuality;
     }
 
-    /** The rule used to revise quality scores, which is: if it's less than 1, make it 1. */
-    private static byte generateRevisedQuality(final byte quality) { return (byte) Math.max(quality, 1); }
-    
+    public static byte generateRevisedQuality(final byte quality) {
+        // previously this was:
+        // return (byte) Math.max(quality, 1);
+        // but a simple < operator is about 3 times faster
+        return quality < 1 ? 1 : quality;
+    }
+
     /**
      * Accepts a quality read from a BCL file and (1) returns a 1 if the value was 0 and (2) makes a note of the provided quality if it is
      * low.  Because of (2) each record's quality should be passed only once to this method, otherwise it will be observed multiple times.
@@ -73,14 +78,14 @@ public class BclQualityEvaluationStrategy {
              * We're comparing revised qualities here, not observed, but the qualities that are logged in qualityCountMap are observed
              * qualities.  So as we iterate through it, convert observed qualities into their revised value. 
              */
-            if (generateRevisedQuality(entry.getKey()) < minimumRevisedQuality) { 
+            if (generateRevisedQuality(entry.getKey()) < minimumRevisedQuality) {
                 errorTokens.add(String.format("quality %s observed %s times", entry.getKey(), entry.getValue()));
             }
         }
         if (!errorTokens.isEmpty()) {
             throw new PicardException(String.format(
                     "Found BCL qualities that fell beneath minimum threshold of %s: %s.",
-                    minimumRevisedQuality, 
+                    minimumRevisedQuality,
                     CollectionUtil.join(errorTokens, "; ")
             ));
         }
@@ -96,4 +101,5 @@ public class BclQualityEvaluationStrategy {
         }
         return Collections.unmodifiableMap(qualityCountMapCopy);
     }
+
 }

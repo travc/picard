@@ -77,16 +77,21 @@ public class BclReader implements CloseableIterator<BclData> {
     private static final int HEADER_SIZE = 4;
     private static final byte[] BASE_LOOKUP = new byte[]{'A', 'C', 'G', 'T'};
 
-    private final InputStream[] streams;
+    private final boolean seekable;
+    private final File[] files;
+    private InputStream[] streams;
     private final int[] outputLengths;
-    int[] numClustersPerCycle;
+    protected int[] numClustersPerCycle;
 
     private final BclQualityEvaluationStrategy bclQualityEvaluationStrategy;
     private BclData queue = null;
 
+    private boolean areStreamsOpen = false;
+
     public BclReader(final List<File> bclsForOneTile, final int[] outputLengths,
                      final BclQualityEvaluationStrategy bclQualityEvaluationStrategy, final boolean seekable) {
         try {
+            this.seekable = seekable;
             this.bclQualityEvaluationStrategy = bclQualityEvaluationStrategy;
             this.outputLengths = outputLengths;
 
@@ -94,7 +99,7 @@ public class BclReader implements CloseableIterator<BclData> {
             for (final int outputLength : outputLengths) {
                 cycles += outputLength;
             }
-            this.streams = new InputStream[cycles];
+            this.files = new File[cycles];
             this.numClustersPerCycle = new int[cycles];
 
             final ByteBuffer byteBuffer = ByteBuffer.allocate(HEADER_SIZE);
@@ -119,8 +124,9 @@ public class BclReader implements CloseableIterator<BclData> {
                 if (!isBgzf && !isGzip) {
                     assertProperFileStructure(bclFile, numClustersPerCycle[i], stream);
                 }
-                this.streams[i] = stream;
+                this.files[i] = bclFile;
                 byteBuffer.clear();
+                stream.close();
             }
         } catch (final IOException ioe) {
             throw new RuntimeIOException(ioe);
@@ -133,6 +139,10 @@ public class BclReader implements CloseableIterator<BclData> {
 
     public static boolean isBlockGzipped(final File file) {
         return file.getAbsolutePath().endsWith(".bgzf");
+    }
+
+    public int getNumberOfClusters() {
+        return numClustersPerCycle[0];
     }
 
     public static long getNumberOfClusters(final File file) {
@@ -171,9 +181,9 @@ public class BclReader implements CloseableIterator<BclData> {
 
     public BclReader(final File bclFile, final BclQualityEvaluationStrategy bclQualityEvaluationStrategy, final boolean seekable) {
         try {
-
+            this.seekable = seekable;
             this.outputLengths = new int[]{1};
-            this.streams = new InputStream[1];
+            this.files = new File[1];
             this.numClustersPerCycle = new int[]{1};
             this.bclQualityEvaluationStrategy = bclQualityEvaluationStrategy;
 
@@ -193,7 +203,8 @@ public class BclReader implements CloseableIterator<BclData> {
             if (!isBgzf && !isGzip) {
                 assertProperFileStructure(bclFile, this.numClustersPerCycle[0], stream);
             }
-            this.streams[0] = stream;
+            this.files[0] = bclFile;
+            stream.close();
         } catch (final IOException ioe) {
             throw new PicardException("IOException opening file " + bclFile.getAbsoluteFile(), ioe);
         }
@@ -207,7 +218,7 @@ public class BclReader implements CloseableIterator<BclData> {
         }
     }
 
-    InputStream open(final File file, final boolean seekable, final boolean isGzip, final boolean isBgzf) throws IOException {
+    InputStream open(final File file, final boolean seekable, final boolean isGzip, final boolean isBgzf){
         final String filePath = file.getAbsolutePath();
 
         try {
@@ -240,8 +251,10 @@ public class BclReader implements CloseableIterator<BclData> {
     }
 
     public void close() {
-        for (final InputStream stream : this.streams) {
-            CloserUtil.close(stream);
+        if(areStreamsOpen) {
+            for (final InputStream stream : this.streams) {
+                CloserUtil.close(stream);
+            }
         }
     }
 
@@ -260,7 +273,7 @@ public class BclReader implements CloseableIterator<BclData> {
     protected void assertProperFileStructure(final File file) {
         final long elementsInFile = file.length() - HEADER_SIZE;
         if (numClustersPerCycle[0] != elementsInFile) {
-            throw new PicardException("Expected " + numClustersPerCycle[0]  + " in file " + file.getAbsolutePath() + " but found " + elementsInFile);
+            throw new PicardException("Expected " + numClustersPerCycle[0] + " in file " + file.getAbsolutePath() + " but found " + elementsInFile);
 
         }
     }
@@ -281,6 +294,9 @@ public class BclReader implements CloseableIterator<BclData> {
     }
 
     void advance() {
+        if (!areStreamsOpen) {
+            initializeStreams();
+        }
         int totalCycleCount = 0;
         final BclData data = new BclData(outputLengths);
         for (int read = 0; read < outputLengths.length; read++) {
@@ -317,7 +333,10 @@ public class BclReader implements CloseableIterator<BclData> {
     public int seek(final List<File> files, final TileIndex tileIndex, final int currentTile) {
         int count = 0;
         int numClustersInTile = 0;
-        for (final InputStream inputStream : streams) {
+        if (!areStreamsOpen) {
+            initializeStreams();
+        }
+        for (final InputStream inputStream : this.streams) {
             final TileIndex.TileIndexRecord tileIndexRecord = tileIndex.findTile(currentTile);
             final BclIndexReader bclIndexReader = new BclIndexReader(files.get(count));
             final long virtualFilePointer = bclIndexReader.get(tileIndexRecord.getZeroBasedTileNumber());
@@ -338,6 +357,33 @@ public class BclReader implements CloseableIterator<BclData> {
             count++;
         }
         return numClustersInTile;
+    }
+
+    private void initializeStreams() {
+        try {
+            final ByteBuffer byteBuffer = ByteBuffer.allocate(HEADER_SIZE);
+            streams = new InputStream[files.length];
+            for (int i = 0; i < files.length; i++) {
+                final File bclFile = files[i];
+                final String filePath = bclFile.getName();
+                final boolean isGzip = filePath.endsWith(".gz");
+                final boolean isBgzf = filePath.endsWith(".bgzf");
+                final InputStream stream;
+
+                stream = open(bclFile, seekable, isGzip, isBgzf);
+
+                final int read = stream.read(byteBuffer.array());
+                if (read != HEADER_SIZE) {
+                    close();
+                    throw new RuntimeIOException(String.format("BCL %s has invalid header structure.", bclFile.getAbsoluteFile()));
+                }
+                streams[i] = stream;
+            }
+            areStreamsOpen = true;
+        } catch (final IOException ioe) {
+            close();
+            throw new RuntimeIOException(ioe);
+        }
     }
 }
 
