@@ -54,12 +54,8 @@ import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Manages the conversion of Illumina basecalls into some output format.  Creates multiple threads to manage reading,
@@ -142,23 +138,23 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
     private final Class<CLUSTER_OUTPUT_RECORD> outputRecordClass;
 
     /**
-     * @param basecallsDir           Where to read basecalls from.
-     * @param lane                   What lane to process.
-     * @param readStructure          How to interpret each cluster.
+     * @param basecallsDir Where to read basecalls from.
+     * @param lane What lane to process.
+     * @param readStructure How to interpret each cluster.
      * @param barcodeRecordWriterMap Map from barcode to CLUSTER_OUTPUT_RECORD writer.  If demultiplex is false, must contain
-     *                               one writer stored with key=null.
-     * @param demultiplex            If true, output is split by barcode, otherwise all are written to the same output stream.
-     * @param maxReadsInRam          Configures number of total reads that all tiles will store in RAM before spilling to disk.
-     * @param tmpDirs                For SortingCollection spilling.
-     * @param numProcessors          Controls number of threads.  If <= 0, the number of threads allocated is
-     *                               available cores - numProcessors.
-     * @param forceGc                Force explicit GC periodically.  This is good for causing memory maps to be released.
-     * @param firstTile              (For debugging) If non-null, start processing at this tile.
-     * @param tileLimit              (For debugging) If non-null, process no more than this many tiles.
+     * one writer stored with key=null.
+     * @param demultiplex If true, output is split by barcode, otherwise all are written to the same output stream.
+     * @param maxReadsInRam Configures number of total reads that all tiles will store in RAM before spilling to disk.
+     * @param tmpDirs For SortingCollection spilling.
+     * @param numProcessors Controls number of threads.  If <= 0, the number of threads allocated is
+     * available cores - numProcessors.
+     * @param forceGc Force explicit GC periodically.  This is good for causing memory maps to be released.
+     * @param firstTile (For debugging) If non-null, start processing at this tile.
+     * @param tileLimit (For debugging) If non-null, process no more than this many tiles.
      * @param outputRecordComparator For sorting output records within a single tile.
-     * @param codecPrototype         For spilling output records to disk.
-     * @param outputRecordClass      Inconveniently needed to create SortingCollections.
-     * @param includeNonPfReads      If true, will include ALL reads (including those which do not have PF set)
+     * @param codecPrototype For spilling output records to disk.
+     * @param outputRecordClass Inconveniently needed to create SortingCollections.
+     * @param includeNonPfReads If true, will include ALL reads (including those which do not have PF set)
      */
     public IlluminaBasecallsConverter(final File basecallsDir, final int lane, final ReadStructure readStructure,
                                       final Map<String, ? extends ConvertedClusterDataWriter<CLUSTER_OUTPUT_RECORD>> barcodeRecordWriterMap,
@@ -327,34 +323,6 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
         @Override
         public int compareTo(final Tile o) {
             return TILE_NUMBER_COMPARATOR.compare(this.getNumber(), o.getNumber());
-        }
-    }
-
-
-    /**
-     * A Runnable that carries a priority which is used to compare and order other PriorityRunnables in a task queue.
-     */
-    private abstract class PriorityRunnable implements Runnable {
-        private final int priority;
-
-        /**
-         * Create a new priority runnable with a default priority of 1.
-         */
-        public PriorityRunnable() {
-            this(1);
-        }
-
-        public PriorityRunnable(final int priority) {
-            this.priority = priority;
-        }
-
-        /**
-         * Returns the priority level.  Higher priorities are run earlier.
-         *
-         * @return
-         */
-        int getPriority() {
-            return this.priority;
         }
     }
 
@@ -610,23 +578,15 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
             // Set the thread that is executing this work
             this.parentThread = Thread.currentThread();
 
-            /**
-             * For each tile, create and submit a tile processor.  Give it a negative execution priority (so that
-             * prioritized tasks with a positive execution priority execute first), and give later tiles a lesser
-             * (more negative) priority.
-             */
-            int priority = 0;
-
-
             for (final Tile tile : this.tileRecords.keySet()) {
                 final IlluminaDataProvider dataProvider = factory.makeDataProvider(Collections.singletonList(tile.tileNumber));
                 final TileReader reader = new TileReader(tile, this, this.tileRecords.get(tile), dataProvider);
-                priority = queueTask(priority, reader);
+                queueTask(reader);
             }
         }
 
-        private int queueTask(int priority, final TileReader reader) {
-            this.prioritizingThreadPool.execute(new PriorityRunnable(--priority) {
+        private void queueTask(final TileReader reader) {
+            this.prioritizingThreadPool.execute(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -661,7 +621,6 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                     }
                 }
             });
-            return priority;
         }
 
         /**
@@ -776,13 +735,13 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
          * Returns a PriorityRunnable that encapsulates the work involved with writing the provided tileRecord's data
          * for the given barcode to disk.
          *
-         * @param tile       The tile from which the record was read
+         * @param tile The tile from which the record was read
          * @param tileRecord The processing record associated with the tile
-         * @param barcode    The barcode whose data within the tileRecord is to be written
+         * @param barcode The barcode whose data within the tileRecord is to be written
          * @return The runnable that upon invocation writes the barcode's data from the tileRecord to disk
          */
-        private PriorityRunnable newBarcodeWorkInstance(final Tile tile, final TileProcessingRecord tileRecord, final String barcode) {
-            return new PriorityRunnable() {
+        private Runnable newBarcodeWorkInstance(final Tile tile, final TileProcessingRecord tileRecord, final String barcode) {
+            return new Runnable() {
                 @Override
                 public void run() {
                     try {
