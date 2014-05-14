@@ -760,7 +760,6 @@ public class IlluminaBasecallsConverter<CLUSTER_OUTPUT_RECORD> {
                                      */
                                     tileRecord.setBarcodeState(barcode, TileBarcodeProcessingState.QUEUED_FOR_WRITE);
                                     log.debug(String.format("Enqueuing work for tile %s and barcode %s.", tile.getNumber(), barcode));
-                                    tileRecord.barcodeToRecordCollection.get(barcode).doneAdding();
                                     tasks.add(this.newBarcodeWorkInstance(tile, tileRecord, barcode));
                             }
                         }
