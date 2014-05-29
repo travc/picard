@@ -976,7 +976,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         }
 
         private class BufferBlock implements Iterator<SAMRecord> {
-            private DiskBackedQueue diskBackedQueue;
+            private DiskBackedQueue recordsQueue;
             private boolean isAvailableForWriting;
             private int maxBlockSize;
             private int startIndex;
@@ -986,12 +986,14 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             private int maxBlockRecordsInMemory;
 
             public BufferBlock(final int maxBlockSize, final int maxBlockRecordsInMemory, final List<File> tmpDirs) {
-                this.diskBackedQueue = DiskBackedQueue.newInstance(new BAMRecordCodec(header), maxBlockRecordsInMemory, tmpDirs);
+                this.recordsQueue = DiskBackedQueue.newInstance(new BAMRecordCodec(header), maxBlockRecordsInMemory, tmpDirs);
                 this.maxBlockSize = maxBlockSize;
                 this.maxBlockRecordsInMemory = maxBlockRecordsInMemory;
                 this.isAvailableForWriting = false;
                 this.startIndex = -1;
                 this.endIndex = -1;
+                this.wasCheckedIndexes = new byte[maxBlockSize];
+                this.isDuplicateIndexes = new byte[maxBlockSize];
             }
 
             public boolean isAvailableForWriting() { return isAvailableForWriting; }
