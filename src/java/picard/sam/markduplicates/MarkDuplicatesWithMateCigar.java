@@ -63,6 +63,9 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
     @Option(doc="Skip record pairs with no mate cigar and include them in the output.")
     boolean SKIP_PAIRS_WITH_NO_MATE_CIGAR = true;
 
+    @Option(doc="The block size for use in the coordinate-sorted record buffer. Default = 100,000", optional = true)
+    public int BLOCK_SIZE = 100000;
+
     private boolean warnedNullProgramRecords = false;
     private boolean warnedMissingProgramRecords = false;
 
@@ -109,6 +112,7 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
                 this.SCORING_STRATEGY,
                 this.SKIP_PAIRS_WITH_NO_MATE_CIGAR,
                 this.MAX_RECORDS_IN_RAM,
+                this.BLOCK_SIZE,
                 this.TMP_DIR);
 
         // progress logger!

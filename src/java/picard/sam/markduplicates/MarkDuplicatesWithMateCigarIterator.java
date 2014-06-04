@@ -53,7 +53,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
     private SAMFileHeader header = null;
     private PeekableIterator<SAMRecord> backingIterator = null;
-    private final List<File> tmpDirs;
+    private int backingIteratorRecordIndex = 0;
 
     private boolean removeDuplicates = false;
     private boolean skipPairsWithNoMateCigar = true;
@@ -70,7 +70,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     private boolean foundUnmappedEOFReads = false;
     private int referenceIndex = 0;
 
-    private final DuplicateMarkingBuffer alignmentStartSortedBuffer = null;
+    private DuplicateMarkingBuffer alignmentStartSortedBuffer = null;
     private final Set<String> isDuplicateMarkedSet = new HashSet<String>();
     private final MarkQueue toMarkQueue = new MarkQueue();
 
@@ -104,6 +104,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                                                final ScoringStrategy scoringStrategy,
                                                final boolean skipPairsWithNoMateCigar,
                                                final int maxRecordsInRam,
+                                               final int blockSize,
                                                final List<File> tmpDirs) throws PicardException {
         if (header.getSortOrder() != SAMFileHeader.SortOrder.coordinate) {
             throw new PicardException(this.getClass().getName() + " expects the input to be in coordinate sort order.");
@@ -111,8 +112,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
         this.header = header;
         this.backingIterator = new PeekableIterator<SAMRecord>(iterator);
-        this.tmpDirs = tmpDirs;
-//        this.alignmentStartSortedBuffer = DiskBackedQueue.newInstance(new BAMRecordCodec(header), maxRecordsInRam, tmpDirs);
+        this.alignmentStartSortedBuffer = new DuplicateMarkingBuffer(maxRecordsInRam, blockSize, tmpDirs);
 
         this.removeDuplicates = removeDuplicates;
         this.skipPairsWithNoMateCigar = skipPairsWithNoMateCigar;
@@ -136,7 +136,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         this.nextRecord = this.markDuplicatesAndGetTheNextAvailable(); // get one directly, or null
     }
 
-    public String getRecordKey(final SAMRecord record) {return (record.getReadPairedFlag()) ? (record.getReadName() + record.getFirstOfPairFlag() + record.getNotPrimaryAlignmentFlag()) : record.getReadName();}
+//    public String getRecordKey(final SAMRecord record) {return (record.getReadPairedFlag()) ? (record.getReadName() + record.getFirstOfPairFlag() + record.getNotPrimaryAlignmentFlag()) : record.getReadName();}
 //    private String getRecordKey(final SAMRecord record) {return record.getReadName() +  (record.getReadPairedFlag() ? record.getFirstOfPairFlag(): 0);}
 
     public void logMemoryStats(final Log log) {
@@ -194,8 +194,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         final SAMRecord toReturn = this.nextRecord; // save for return
         if (hasNext()) { // call hasNext, since we may need it to update this.nextRecord
             this.nextRecord = this.markDuplicatesAndGetTheNextAvailable(); // get one more, if possible
-        }
-        else {
+        } else {
             this.nextRecord = null;
         }
 
@@ -237,7 +236,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 if (!this.alignmentStartSortedBuffer.hasNext()) return null; // no need to flush; no records in either queue or buffer
             }
             else {
-                // force marking duplicates on the remaining records
+                // force marking duplicates on the remaining records  TODO- are these all non-duplicates???
                 while (!toMarkQueue.isEmpty()) {
                     chunkAndMarkTheDuplicates();
                 }
@@ -252,13 +251,14 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         // has been through duplicate marking.
         while (this.backingIterator.hasNext()) {
             // NB: we could get rid of this if we made this.nextRecord into a list...
-            SAMRecord record = this.backingIterator.peek(); // peek: used for unmapped reads
+            SAMRecord record = this.backingIterator.peek(); // peek: used for unmapped reads      TODO- do I really need to call peek?
 
             ReadEndsMC readEnds = null;
             boolean performedChunkAndMarkTheDuplicates = false;
 
             // remove duplicate information
             record.setDuplicateReadFlag(false);
+            record.setTemporaryDuplicateMarkedFlag(false);
 
             // ignore/except-on paired records with mapped mate and no mate cigar
             if (record.getReadPairedFlag() &&
@@ -281,8 +281,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
                 if (this.skipPairsWithNoMateCigar) { // pseudo-silently ignores them
                     // NB: need to add/set-flag as chunking/flushing of the toMarkQueue may need to occur
-                    this.add(record); // now wrapped record will be stored in alignmentStartSortedBuffer for return
-                    this.isDuplicateMarkedSet.add(getRecordKey(record)); // indicate the present wrapped record is available for return
+                    this.add(record); // now record will be stored in alignmentStartSortedBuffer for return
+                    this.backingIteratorRecordIndex++;
+                    this.alignmentStartSortedBuffer.setDuplicateMarkingFlags(record, this.backingIteratorRecordIndex, false); // indicate the present wrapped record is available for return
                     this.numRecordsWithNoMateCigar++;
                     this.backingIterator.next(); // remove it, since we called this.backingIterator.peek()
                     continue;
@@ -309,11 +310,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
                         // We should have no more in the queue
                         if (this.alignmentStartSortedBuffer.hasNext()) {
-                            System.out.println("ASSB size: " + this.alignmentStartSortedBuffer.size());
+//                            System.out.println("ASSB size: " + this.alignmentStartSortedBuffer.size());         TODO- remove
 //                            System.out.println("First record: " + this.alignmentStartSortedBuffer.peek().getSAMString());
                             throw new PicardException("Encountered unmapped reads at the end of the file, but the alignment start buffer was not empty.");
                         }
-                        return unmappedRecord;
+                        return unmappedRecord; // unmapped end of file records can simply be emitted - no need to duplicate mark them
                     }
                     else {
                         this.foundUnmappedEOFReads = true;
@@ -342,7 +343,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 }
 
                 // build a read end for use in the to-mark queue
-                readEnds = new ReadEndsMC(header, record);
+                readEnds = new ReadEndsMC(header, record, this.backingIteratorRecordIndex);
 
                 // Check that we are not incorrectly performing any duplicate marking, by having too few of the records.  This
                 // can happen if the alignment start is increasing but 5' soft-clipping is increasing such that we miss reads with
@@ -386,8 +387,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             // now wrapped record will be tracked by alignmentStartSortedBuffer until it has been duplicate marked
             this.add(record);
 
-            if (record.isSecondaryOrSupplementary() || record.getReadUnmappedFlag()) { // do not consider these
-                  this.isDuplicateMarkedSet.add(getRecordKey(record)); // indicate the present wrapped record is available for return
+            // We do not consider these. Indicate the present record is available for return
+            if (record.isSecondaryOrSupplementary() || record.getReadUnmappedFlag()) {
+                  this.alignmentStartSortedBuffer.setDuplicateMarkingFlags(record, this.backingIteratorRecordIndex, false);
             }
             else {
                 // update metrics
@@ -425,6 +427,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     @Override
     public void close() {
         this.backingIterator.close();
+        this.alignmentStartSortedBuffer.close();
     }
 
     /**
@@ -448,23 +451,18 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     /**
      * Gets a SAMRecord if one is available after marking.  This enforces that we return records in the original
      * coordinate sort order in a stable fashion.
+     *
+     * @return the head of the alignment-start sorted buffer, or null if the head record has not yet been duplicate marked
      */
     private SAMRecord flush() {
-        while (this.alignmentStartSortedBuffer.hasNext()) {
-//            final SAMRecord record = this.alignmentStartSortedBuffer.peek(); // get the first in the buffer
-            // check if we can proceed
-//            if (this.isDuplicateMarkedSet.contains(getRecordKey(record))) {
-                this.alignmentStartSortedBuffer.remove(); // remove the record, since we called "peek"
-//                this.isDuplicateMarkedSet.remove(getRecordKey(record)); // remove the key from the marking tracker
-                // remove or just mark?
-//                if (!this.removeDuplicates || !record.getDuplicateReadFlag()) {
-                    // we do not want to remove or it is not marked as a duplicate
-//                    return record; // return the underlying SAMRecord for output from the iterator
-//                }
-//            }
-//            else { // nope, we have not duplicate marked this read
-//                break;
-//            }
+        // Check that there is at least one record in the coordinate-sorted buffer, and that the head record has been through duplicate-marking
+        while (this.alignmentStartSortedBuffer.hasNext() && this.alignmentStartSortedBuffer.canEmit()) {
+            final SAMRecord record = this.alignmentStartSortedBuffer.next();
+            record.setTemporaryDuplicateMarkedFlag(false); // clear the temporary flag used to record duplicate-marking events
+
+            // If this read is a duplicate, do we want to remove it (continue the loop) or return it for emission?
+            if (!this.removeDuplicates || !record.getDuplicateReadFlag())
+                return record;
         }
         return null;
     }
@@ -482,7 +480,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         else if (this.referenceIndex < recordReferenceIndex) {
             // new reference, so we need to mark duplicates on the current ones
             while (!this.toMarkQueue.isEmpty()) {
-                chunkAndMarkTheDuplicates();
+                chunkAndMarkTheDuplicates();           // TODO- seems like this is just going to process remaining records out as non-duplicates. Are we missing inter-chromosomal duplicates here????
             }
             // update genomic coordinate
             this.referenceIndex = recordReferenceIndex;
@@ -493,21 +491,21 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 }
 
     /**
-     * Chunk the records and mark the duplicates.
+     * Chunk the records and mark the duplicates.      //TODO - rename this function. really we are just processing out reads we're calling non-duplicates
      */
     private void chunkAndMarkTheDuplicates()
-    {
+    {   //TODO- are we always calling this in a loop????? If so, move the looping logic in here.
         if (this.toMarkQueue.isEmpty()) return;
 
         if (!toMarkQueue.isEmpty() && !this.alignmentStartSortedBuffer.hasNext()) {
-            throw new PicardException("0 < toMarkQueue && !alignmentStartSortedBuffer.iterator().hasNext()");
+            throw new PicardException("0 < toMarkQueue && !alignmentStartSortedBuffer.hasNext()");
         }
 
         final ReadEndsMC next = this.toMarkQueue.poll(); // get the first one!
-        // it is not marked as a duplicate :)
-        this.isDuplicateMarkedSet.add(getRecordKey(next.getRecord())); // track that this record has been through duplicate marking
+        // Track that this record has been through duplicate marking. It is not marked as a duplicate :)
+        this.alignmentStartSortedBuffer.setDuplicateMarkingFlags(next.getRecord(), next.getRecordIndex(), false);
 
-        // track optical duplicates
+        // track optical duplicates     //TODO- re-figure-out what is going on here
         if (next.isPaired() && 0 == next.hasUnmapped) {
             final Set<PhysicalLocationMC> locations = this.toMarkQueue.getLocations(next);
             if (!locations.isEmpty()) {
@@ -589,9 +587,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         // we need this reference so we can access the mate cigar among other things
         private SAMRecord record = null;
 
+        // storing the record's original position in the coordinate-sorted input
+        private int recordIndex;
 
         /** Builds a read ends object that represents a single read. */
-        public ReadEndsMC(final SAMFileHeader header, final SAMRecord rec) {
+        public ReadEndsMC(final SAMFileHeader header, final SAMRecord rec, final int recordIndex) {
             this.readGroup = -1;
             this.tile = -1;
             this.x = this.y = -1;
@@ -599,6 +599,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             this.hasUnmapped = 0;
 
             this.record = rec;
+            this.recordIndex = recordIndex;
 
             this.read1Sequence = this.record.getReferenceIndex();
             this.read1Coordinate = this.record.getReadNegativeStrandFlag() ? this.record.getUnclippedEnd() : this.record.getUnclippedStart();
@@ -646,6 +647,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         public SAMRecord getRecord() { return this.record; }
         public SAMRecord setRecord(final SAMRecord record) { return this.record = record; }
         public String getRecordReadName() { return this.record.getReadName(); }
+        public int getRecordIndex() { return this.recordIndex; }
+        public int setRecordIndex(final int recordIndex) { return this.recordIndex = recordIndex; }
 
         @Override
         public boolean isPaired() { return this.getRecord().getReadPairedFlag(); }
@@ -787,7 +790,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             if (current.isPaired()) {
                 // NB: only care about read1Sequence, read1Coordinate, and orientation in the set
                 if (null == this.tmpReadEnds) { // initialize
-                    this.tmpReadEnds = new ReadEndsMC(header, current.getRecord());
+                    this.tmpReadEnds = new ReadEndsMC(header, current.getRecord(), current.getRecordIndex());
                     this.tmpReadEnds.read2Sequence = this.tmpReadEnds.read2Coordinate = -1;
                     this.tmpReadEnds.record = null;
                 }
@@ -806,8 +809,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                         final ReadEndsMC duplicate = sortedSet.first();
 
                         // mark as duplicate and set that it has been through duplicate marking
-                        duplicate.getRecord().setDuplicateReadFlag(true);
-                        isDuplicateMarkedSet.add(getRecordKey(duplicate.getRecord())); // track that this record has been through duplicate marking
+//                        duplicate.getRecord().setDuplicateReadFlag(true); HANDLED BY THE METHOD CALL BELOW
+                        alignmentStartSortedBuffer.setDuplicateMarkingFlags(duplicate.getRecord(), duplicate.getRecordIndex(), true);
 
                         // remove from the set
                         this.set.remove(this.tmpReadEnds);
@@ -826,8 +829,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 }
             }
 
-            // this read end is now ok to be outputted
-            isDuplicateMarkedSet.add(getRecordKey(current.getRecord())); // track that this record has been through duplicate marking
+            // this read end is now ok to be emitted. track that it has been through duplicate marking
+            alignmentStartSortedBuffer.setDuplicateMarkingFlags(current.getRecord(), current.getRecordIndex(), false);
 
             return current;
         }
@@ -858,9 +861,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                     this.set.add(other);
 
                     // current is a now duplicate :/
-                    current.getRecord().setDuplicateReadFlag(true);
+//                    current.getRecord().setDuplicateReadFlag(true);     HANDLED BY THE METHOD CALL BELOW
                     duplicate = current;
-                    isDuplicateMarkedSet.add(getRecordKey(current.getRecord())); // track that this record has been through duplicate marking
+                    alignmentStartSortedBuffer.setDuplicateMarkingFlags(current.getRecord(), current.getRecordIndex(), true); // track that this record has been through duplicate marking
                 }
                 else { // keep current
                     if (current.isPaired() && 0 == current.hasUnmapped) {
@@ -868,15 +871,17 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                     }
                     // NB: else is technically not needed, since if this was not paired and the other one was, we would enter here and add it later
 
-                    if (0 != comparison) {
+                    if (0 != comparison) {           // TODO- what happens if 0 DOES == comparison???
                         // other is a duplicate :/
                         other.getRecord().setDuplicateReadFlag(true);
+                        alignmentStartSortedBuffer.setDuplicateMarkingFlags(other.getRecord(), other.getRecordIndex(), true);
                         duplicate = other;
+                    } else {
+                        alignmentStartSortedBuffer.setDuplicateMarkingFlags(other.getRecord(), other.getRecordIndex(), false);
                     }
-                    isDuplicateMarkedSet.add(getRecordKey(other.getRecord())); // track that this record has been through duplicate marking
+//                    isDuplicateMarkedSet.add(getRecordKey(other.getRecord())); // track that this record has been through duplicate marking  HANDELED BY ONE OF THE TWO METHOD CALLS ABOVE
                 }
-            }
-            else { // not in the set
+            } else { // not in the set
                 if (other.isPaired() && 0 == other.hasUnmapped) {
                     locationSet = new HashSet<PhysicalLocationMC>();
                     this.locations.put(other, locationSet);
@@ -911,55 +916,77 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         }
     }
 
-    private class DuplicateMarkingBuffer implements Iterator<SAMRecord> {
-        private int maxRecordsInMemory;
+    /**
+     * TODO - document this class
+     */
+    public class DuplicateMarkingBuffer implements Iterator<SAMRecord> {
         private int availableRecordsInMemory;
-        private int blockSize;
-        private int queueHeadRecordIndex;
-        private int queueTailRecordIndex;
-        private Deque<BufferBlock> blocks;
+        private final int blockSize;
+        private final List<File> tmpDirs;
+        private final int queueHeadRecordIndex;
+        private final int queueTailRecordIndex;
+        private final Deque<BufferBlock> blocks;
 
-        public DuplicateMarkingBuffer(final int maxRecordsInMemory, final int blockSize) {
-            this.maxRecordsInMemory = maxRecordsInMemory;
+        public DuplicateMarkingBuffer(final int maxRecordsInMemory, final int blockSize, final List<File> tmpDirs) {
             this.availableRecordsInMemory = maxRecordsInMemory;
+            this.blockSize = blockSize;
+            this.tmpDirs = tmpDirs;
             this.queueHeadRecordIndex = 0;
             this.queueTailRecordIndex = 0;
-            this.blockSize = blockSize;
             this.blocks = new ArrayDeque<BufferBlock>();
         }
 
+        @Override
+        public boolean hasNext() { return (blocks.size() != 0  && this.blocks.getFirst().hasNext()); }
+
+        /**
+         * Returns true if the head record in the DuplicateMarkingBuffer is annotated as having been through duplicate marking
+         *
+         * @return true if the head record in the buffer has been through duplicate marking
+         */
+        public boolean canEmit() { return (this.blocks.size() !=0 && this.blocks.getFirst().canEmit()); }
+
+        /**
+         * Add the provided record to the tail of this DuplicateMarkingBuffer
+         * @param record The record to be added
+         * @param recordIndex The record's position in the original coordinate-sorted order of the input
+         */
         public void add(final SAMRecord record, final int recordIndex) {
             // If necessary, create a new block, using as much ram as available up to its total size
             if (this.blocks.size() == 0 || !this.blocks.getLast().canAdd()) {
                 // once ram is given to a block, we can't give it to another block (until some is recovered from the head of the queue)
-                final int blockRam = Math.min(blockSize, availableRecordsInMemory);
+                final int blockRam = Math.min(this.blockSize, this.availableRecordsInMemory);
                 this.availableRecordsInMemory = this.availableRecordsInMemory - blockRam;
-                final BufferBlock block = new BufferBlock(this.blockSize, blockRam, tmpDirs);
-                this.blocks.add(block);
+                final BufferBlock block = new BufferBlock(this.blockSize, blockRam, this.tmpDirs);
+                this.blocks.addLast(block);
             }
-            this.blocks.getLast().add(record, recordIndex);
+            this.blocks.getLast().add(record, recordIndex);  // TODO- need to catch BufferBlock and DiskBackedQueue exceptions here?
         }
 
-        @Override
-        public boolean hasNext() { return (blocks.size() != 0); }     // NB: (&& blocks.peekFirst().hasNext()) ??
-
-        public boolean canEmit() { return (this.blocks.size() !=0 && this.blocks.getFirst().canEmit()); }
-
+        /**
+         * Returns the next element in the iteration.
+         *
+         * @return The next element in the iteration.
+         * @throws NoSuchElementException if the buffer is empty.
+         * @throws PicardException if the buffer is not competent to emit (canEmit returns false)
+         */
         @Override
         public SAMRecord next() {
-            //TODO reclaim ram if possible
-
-            if (this.blocks.size() == 0)
+            if (!this.hasNext())
                 throw new NoSuchElementException("Attempting to remove an element from an empty DuplicateMarkingBuffer");
-            final BufferBlock head = this.blocks.peekFirst();
-            if (!head.hasNext())
-                throw new PicardException("DuplicateMarkingBuffer attempted to remove a record from an empty block.");
-            if (!head.canEmit())
+            final BufferBlock headBlock = this.blocks.getFirst();
+            if (!headBlock.canEmit())
                 throw new PicardException("Attempting to get a record from the DuplicateMarkingBuffer that has not been through " +
                                           "duplicate marking. canEmit() must return true in order to call next()");
-            final SAMRecord record = head.next();
-            if (!head.hasNext())
+
+            // If the record was stored in memory, reclaim its ram for use in additional blocks at tail of queue
+            // NB: this must be checked before calling next(), as that method updates the block-head
+            if (!headBlock.headRecordIsFromDisk())
+                this.availableRecordsInMemory++;
+            final SAMRecord record = headBlock.next();
+            if (!headBlock.hasNext())  // TODO- need to catch BufferBlock and DiskBackedQueue exceptions here?
                 blocks.poll(); // remove the block as it is now empty
+                headBlock.clear(); // free any disk io resources associated with empty block
             return record;
         }
 
@@ -971,33 +998,65 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
          */
         public int size() { return this.queueTailRecordIndex - this.queueHeadRecordIndex; }
 
-        public void setDuplicateMarkingFlags(final int recordIndex) {
-            // TODO
+        /**
+         * Mark the current record as having been through duplicate-marking, and whether it is a duplicate
+         *
+         * @param record The record to be marked
+         * @param recordIndex The record's position in the original coordinate-sorted order of the input
+         * @param isDuplicate Boolean flag indicating whether this is a duplicate record
+         * @throws PicardException if the provided recordIndex is not found within the DuplicateMarkingBuffer
+         */
+        public void setDuplicateMarkingFlags(final SAMRecord record, final int recordIndex, final boolean isDuplicate) {
+            for (final BufferBlock block : this.blocks) {
+                if (block.getStartIndex() <= recordIndex && block.getEndIndex() >= recordIndex) {
+                    block.setDuplicateMarkingIndexes(record, recordIndex, isDuplicate);
+                }
+            }
+//            throw new PicardException("Attempted to set duplicate-marking information on a record whose index is not found " +
+//                    "in the DuplicateMarkingBuffer. recordIndex: " + recordIndex);
         }
 
+        /**
+         * Close IO resources associated with each underlying BufferBlock
+         */
+        public void close() {
+            while (!blocks.isEmpty()) {
+                final BufferBlock block = blocks.pollFirst();
+                block.clear();
+            }
+        }
 
+        /**
+         * TODO - document this class
+         */
         private class BufferBlock implements Iterator<SAMRecord> {
-            private DiskBackedQueue<SAMRecord> recordsQueue;
-            private int maxBlockSize;
-            private int maxBlockRecordsInMemory;
-            private boolean canAdd;
+            private final DiskBackedQueue<SAMRecord> recordsQueue;
+            private final int maxBlockSize;
+            private final int maxBlockRecordsInMemory;
             private int startIndex;
             private int endIndex;
+            private int firstDiskRecordIndex;
             private int readByteArrayIndex = 0;
             private byte[] wasCheckedIndexes = null;
             private byte[] isDuplicateIndexes = null;
 
+            // TODO- Method javadocs
 
             public BufferBlock(final int maxBlockSize, final int maxBlockRecordsInMemory, final List<File> tmpDirs) {
                 this.recordsQueue = DiskBackedQueue.newInstance(new BAMRecordCodec(header), maxBlockRecordsInMemory, tmpDirs);
                 this.maxBlockSize = maxBlockSize;
                 this.maxBlockRecordsInMemory = maxBlockRecordsInMemory;
-                this.canAdd = true;
                 this.startIndex = -1;
                 this.endIndex = -1;
             }
 
             public boolean canAdd() { return this.recordsQueue.canAdd(); }
+
+            public boolean headRecordIsFromDisk() { return this.recordsQueue.headRecordIsFromDisk(); }
+
+            public int getStartIndex() { return this.startIndex; }
+
+            public int getEndIndex() { return this.endIndex; }
 
             public void add(final SAMRecord record, final int recordIndex) {
                 if (this.recordsQueue.canAdd()) {
@@ -1007,8 +1066,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                     }
                     this.recordsQueue.add(record);
                     this.endIndex++;
-                    // this is the first record that was written to disk
+                    // Is this the first record that was written to disk?
                     if (this.recordsQueue.getNumRecordsOnDisk() == 1) {
+                        this.firstDiskRecordIndex = recordIndex;
                         this.wasCheckedIndexes = new byte[maxBlockSize - maxBlockRecordsInMemory];
                         this.isDuplicateIndexes = new byte[maxBlockSize - maxBlockRecordsInMemory];
                     }
@@ -1017,13 +1077,16 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 }
             }
 
-            public void setDuplicateMarkingIndexes(final int recordIndex, final boolean isDuplicate) {
-                // TODO
-                // if record is in memory:
-                    // record.setTemporaryDuplicateMarkedFlag(true);
-                    // record.setDuplicateReadFlag(isDuplicate);
-                // else:
-                    // find the correct byte array index and update both byte arrays
+            public void setDuplicateMarkingIndexes(final SAMRecord record, final int recordIndex, final boolean isDuplicate) {
+                // Was this record stored in memory or written to disk?
+                if (recordIndex < firstDiskRecordIndex) {
+                     record.setTemporaryDuplicateMarkedFlag(true);
+                     record.setDuplicateReadFlag(isDuplicate);
+                } else {
+                    // find the correct byte array index and update both metadata byte arrays
+                    this.wasCheckedIndexes[recordIndex - this.firstDiskRecordIndex] = 1;
+                    this.isDuplicateIndexes[recordIndex - this.firstDiskRecordIndex] = (isDuplicate) ? (byte)1 : 0; //NB: why the need to cast here?
+                }
             }
 
             @Override
@@ -1035,16 +1098,16 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 if (this.recordsQueue.headRecordIsFromDisk()) {
                     // Since this is a disk-record, we must check its associated metadata to see if it can be emitted
                     return (this.wasCheckedIndexes[this.readByteArrayIndex] == 1);
-
                 } else {
-                    return nextRecord.getTemporaryDuplicateMarkedFlag();
+                    return this.recordsQueue.peek().getTemporaryDuplicateMarkedFlag();
                 }
             }
 
             @Override
             public SAMRecord next() throws IllegalStateException {
                 if (this.canEmit()) {
-                    final SAMRecord record = this.recordsQueue.peek(); // get the head record of the queue
+                    // need to peek at the head record. Polling would update the head of the queue and throw off the condition.
+                    final SAMRecord record = this.recordsQueue.peek();
                     if (this.recordsQueue.headRecordIsFromDisk()) {
                         // Record is coming from disk, we must therefore fix up its duplicate info prior to emitting
                         record.setDuplicateReadFlag(this.isDuplicateIndexes[this.readByteArrayIndex] == 1);
@@ -1068,6 +1131,12 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
              * Return the total number of elements in the block, both in memory and on disk
              */
             public int size() { return this.endIndex - this.startIndex + 1; }
+
+            /**
+             * Close disk IO resources associated with the underlying records queue.
+             * This must be called when a block is no longer needed in order to prevent memory leaks.
+             */
+            public void clear() { this.recordsQueue.clear(); }
         }
     }
 }
