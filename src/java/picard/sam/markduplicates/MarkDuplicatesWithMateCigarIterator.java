@@ -919,7 +919,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     /**
      * TODO - document this class
      */
-    public class DuplicateMarkingBuffer implements Iterator<SAMRecord> {
+    private class DuplicateMarkingBuffer implements Iterator<SAMRecord> {
         private int availableRecordsInMemory;
         private final int blockSize;
         private final List<File> tmpDirs;
