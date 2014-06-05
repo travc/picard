@@ -20,7 +20,7 @@ public class MarkDuplicatesTest extends AbstractMarkDuplicateFindingAlgorithmTes
     @BeforeClass
     public void setUp() {
         TEST_BASE_NAME = "MarkDuplicates";
-        TEST_DATA_DIR = new File("testdata/net/sf/picard/sam/markduplicates/");
+        TEST_DATA_DIR = new File("testdata/picard/sam/MarkDuplicates");
     }
 
     protected AbstractMarkDuplicateFindingAlgorithmTester getTester() {
