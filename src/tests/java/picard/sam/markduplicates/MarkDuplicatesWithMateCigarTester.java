@@ -9,6 +9,8 @@ public class MarkDuplicatesWithMateCigarTester extends AbstractMarkDuplicateFind
         super();
 
         addArg("SCORING_STRATEGY=" + scoringStrategy);
+        addArg("MAX_RECORDS_IN_RAM=1000");
+        addArg("BLOCK_SIZE=250");
     }
 
     @Override
