@@ -25,7 +25,6 @@ package picard.sam.markduplicates;
 
 import picard.PicardException;
 import org.testng.annotations.Test;
-import sun.jvm.hotspot.debugger.cdbg.DebugEvent;
 
 public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
 
@@ -196,21 +195,21 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     }
 
     @Test
-    public void testMatePairFirstUnmapped() {
-        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMatePair(1, 10049, 10049, false, true, false, false, "11M2I63M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY);
-        tester.runTest();
-    }
-
-    @Test
     public void testMatePairSecondUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMatePair(1, 10056, 10056, true, false, false, false, null, "54M22S", false, false, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair(1, 10049, 10049, false, true, false, false, "11M2I63M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY);   // neither are duplicates
         tester.runTest();
     }
 
     @Test
-    public void testMappedFragmentAndMatePairOneUnmapped() {
+    public void testMatePairFirstUnmapped() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMatePair(1, 10056, 10056, true, false, false, false, null, "54M22S", false, false, false, false, false, DEFAULT_BASE_QUALITY);    // neither are duplicates
+        tester.runTest();
+    }
+
+    @Test
+    public void testMappedFragmentAndMatePairSecondUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.addMatePair(1, 10049, 10049, false, true, false, false, "11M2I63M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.addMappedFragment(1, 10049, true, DEFAULT_BASE_QUALITY); // duplicate
@@ -218,11 +217,48 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     }
 
     @Test
-    public void testMappedPairAndMatePairOneUnmapped() {
+    public void testMappedFragmentAndMatePairFirstUnmapped() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMatePair(1, 10049, 10049, true, false, false, false, null, "11M2I63M", false, false, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMappedFragment(1, 10049, true, DEFAULT_BASE_QUALITY); // duplicate
+        tester.runTest();
+    }
+
+    @Test
+    public void testMappedPairAndMatePairSecondUnmapped() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMatePair(1, 10040, 10040, false, true, true, false, "76M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY); // second a duplicate,
+        // second end unmapped
+        tester.addMappedPair(1, 10189, 10040, false, false, "41S35M", "65M11S", true, false, false, DEFAULT_BASE_QUALITY); // mapped OK
+        tester.runTest();
+    }
+
+    @Test
+    public void testMappedPairAndMatePairFirstUnmapped() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMatePair(1, 10040, 10040, true, false, false, true,  null, "76M", false, false, false, false, false, DEFAULT_BASE_QUALITY); // first a duplicate,
+        // first end unmapped
+        tester.addMappedPair(1, 10189, 10040, false, false, "41S35M", "65M11S", true, false, false, DEFAULT_BASE_QUALITY); // mapped OK
+        tester.runTest();
+    }
+
+    @Test
+    public void testMappedPairAndMappedFragmentAndMatePairSecondUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.addMatePair(1, 10040, 10040, false, true, true, false, "76M", null, false, false, false, false, false, DEFAULT_BASE_QUALITY); // first a duplicate,
         // second end unmapped
         tester.addMappedPair(1, 10189, 10040, false, false, "41S35M", "65M11S", true, false, false, DEFAULT_BASE_QUALITY); // mapped OK
+        tester.addMappedFragment(1, 10040, true, DEFAULT_BASE_QUALITY); // duplicate
+        tester.runTest();
+    }
+
+    @Test
+    public void testMappedPairAndMappedFragmentAndMatePairFirstUnmapped() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMatePair(1, 10040, 10040, true, false, false, true, null, "76M", false, false, false, false, false, DEFAULT_BASE_QUALITY); // first a duplicate,
+        // first end unmapped
+        tester.addMappedPair(1, 10189, 10040, false, false, "41S35M", "65M11S", true, false, false, DEFAULT_BASE_QUALITY); // mapped OK
+        tester.addMappedFragment(1, 10040, true, DEFAULT_BASE_QUALITY); // duplicate
         tester.runTest();
     }
 
@@ -259,6 +295,13 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     public void testMappedPairWithSamePosition() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.addMappedPair(1, 4914, 4914, false, false, "37M39S", "73M3S", false, false, false, DEFAULT_BASE_QUALITY); // +/+
+        tester.runTest();
+    }
+
+    @Test
+    public void testMappedPairWithSamePositionSameCigar() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedPair(1, 4914, 4914, false, false, "37M39S", "37M39S", false, false, false, DEFAULT_BASE_QUALITY); // +/+
         tester.runTest();
     }
 

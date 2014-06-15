@@ -51,6 +51,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      * - object pool for ReadEndsMC
      */
 
+    private int unmappedWithMappedPair = 0;
+    private int mappedPairComparableForDuplicate = 0;
+
     private SAMFileHeader header = null;
     private PeekableIterator<SAMRecord> backingIterator = null;
     private int backingIteratorRecordIndex = 0;
@@ -233,11 +236,16 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             // Check if there are any more to mark
             if (this.toMarkQueue.isEmpty()) {
-                if (this.alignmentStartSortedBuffer.isEmpty()) return null; // no need to flush; no records in either queue or buffer
+                if (this.alignmentStartSortedBuffer.isEmpty()) {
+                    System.err.println("saw unmapped reads with mapped pair: " + unmappedWithMappedPair);
+                    System.err.println("saw read pairs comparable for duplicate marking: " + mappedPairComparableForDuplicate);
+                    return null;
+                } // no need to flush; no records in either queue or buffer
             }
             else {
                 // force marking duplicates on the remaining records  TODO- are these all non-duplicates???
                 while (!toMarkQueue.isEmpty()) {
+//                    System.out.println("chunking and marking, past end of BackingIterator");
                     chunkAndMarkTheDuplicates();
                 }
             }
@@ -252,7 +260,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         while (this.backingIterator.hasNext()) {
             // NB: we could get rid of this if we made this.nextRecord into a list...
             SAMRecord record = this.backingIterator.peek(); // peek: used for unmapped reads      TODO- do I really need to call peek?
-            WrappedSamRecord wrappedRecord = new WrappedSamRecord(record, this.backingIteratorRecordIndex);
+            final WrappedSamRecord wrappedRecord = new WrappedSamRecord(record, this.backingIteratorRecordIndex);
 
             ReadEndsMC readEnds = null;
             boolean performedChunkAndMarkTheDuplicates = false;
@@ -323,6 +331,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
                         // do the final round of duplicate marking
                         while (!this.toMarkQueue.isEmpty()) {
+//                            System.out.println("chunking and marking at EOF reads");
                             chunkAndMarkTheDuplicates();
                         }
                         // TODO- NOTE THERE IS NO NEXT HERE
@@ -375,10 +384,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 while (!toMarkQueue.isEmpty() &&
                         (this.referenceIndex != readEnds.read1Sequence ||
                                 this.toMarkQueue.getToMarkQueueMinimumDistance() < readEnds.read1Coordinate - toMarkQueue.peek().read1Coordinate)) {
+//                    System.out.println("chunking and marking bc new record at " + readEnds.read1Coordinate + " is > " + this.toMarkQueue.toMarkQueueMinimumDistance + " away from head record in TMQ at " + toMarkQueue.peek().read1Coordinate);
                     chunkAndMarkTheDuplicates();
                     performedChunkAndMarkTheDuplicates = true; // indicates we can perhaps find a wrappedRecord if we flush
                     // greedily exit this look if we could flush!
-                    if  (this.alignmentStartSortedBuffer.canEmit()) break;
+//                    if  (this.alignmentStartSortedBuffer.canEmit()) break;
 //                    if (this.isDuplicateMarkedSet.contains(getRecordKey(this.alignmentStartSortedBuffer.peek()))) break;
                 }
             }
@@ -391,7 +401,10 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             // We do not consider these. Indicate the present wrappedRecord is available for return
             if (record.isSecondaryOrSupplementary() || record.getReadUnmappedFlag()) {
-                  this.alignmentStartSortedBuffer.setDuplicateMarkingFlags(wrappedRecord, false);
+                this.alignmentStartSortedBuffer.setDuplicateMarkingFlags(wrappedRecord, false);
+
+                if (record.getReadPairedFlag() && !record.getMateUnmappedFlag())
+                    unmappedWithMappedPair++;
             }
             else {
                 // update metrics
@@ -407,6 +420,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
                 // add for duplicate marking
                 toMarkQueue.add(readEnds);
+//                System.out.println("adding record to TMQ at " + readEnds.read1Coordinate);
             }
 
             // Check if there are any we can flush, which happens if we just performed duplicate marking
@@ -482,6 +496,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         else if (this.referenceIndex < recordReferenceIndex) {
             // new reference, so we need to mark duplicates on the current ones
             while (!this.toMarkQueue.isEmpty()) {
+//                System.out.println("chunking and marking from record add, because we're on a new chromosome");
                 chunkAndMarkTheDuplicates();           // TODO- seems like this is just going to process remaining records out as non-duplicates. Are we missing inter-chromosomal duplicates here????
             }
             // update genomic coordinate
@@ -796,6 +811,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         public ReadEndsMC poll() {
             final ReadEndsMC current = this.set.pollFirst();
 
+//            System.out.println("Polling from TMQ. New size: " + this.size());
+
             // If we are a paired read end, we need to make sure we remove unpaired (if we are not also unpaired), as
             // well as fragments from the set, as they should all be duplicates.
             if (current.isPaired()) {
@@ -899,6 +916,12 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 this.set.add(other);
             }
 
+
+//            if  (this.size() % 1 == 0) {
+//                System.out.println("Added to TMQ. new size: " + this.size());
+//            }
+
+
             // add to the physical locations
             final SAMRecord record = other.getRecord();
             if (record.getReadPairedFlag()
@@ -943,6 +966,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             this.queueHeadRecordIndex = -1;
             this.queueTailRecordIndex = -1;
             this.blocks = new ArrayDeque<BufferBlock>();
+//            System.out.println("creating the buffer");
+//            System.out.println("Max block size: " + this.blockSize);
+//            System.out.println("max records in ram: " + this.availableRecordsInMemory);
         }
 
         public boolean isEmpty() { return (blocks.size() == 0  || this.blocks.getFirst().isEmpty()); }
@@ -964,14 +990,17 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 this.queueTailRecordIndex = wrappedRecord.getCoordinateSortedIndex() - 1;
             }
             this.queueTailRecordIndex++;
-
+            //TODO - OOOOOOOOOK. block OriginalRecordIndex getting set whenever queue is empty, which means that the wrong byte arrays are bing accessed and that records are being flushed prematurely. Only want to set OriginalRecordIndex WHEN BLOCK IS CREATED
             // If necessary, create a new block, using as much ram as available up to its total size
             if (this.blocks.size() == 0 || !this.blocks.getLast().canAdd()) {
                 // once ram is given to a block, we can't give it to another block (until some is recovered from the head of the queue)
                 final int blockRam = Math.min(this.blockSize, this.availableRecordsInMemory);
                 this.availableRecordsInMemory = this.availableRecordsInMemory - blockRam;
                 final BufferBlock block = new BufferBlock(this.blockSize, blockRam, this.tmpDirs);
+                block.setOriginalRecordIndex(wrappedRecord.getCoordinateSortedIndex());
                 this.blocks.addLast(block);
+//                System.out.println("\nNumber of blocks is " + this.blocks.size());
+//                System.out.println("size of queue on addition: " + this.size());
             }
             this.blocks.getLast().add(wrappedRecord);  // TODO- need to catch BufferBlock and DiskBackedQueue exceptions here?
         }
@@ -996,9 +1025,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             if (!headBlock.headRecordIsFromDisk())
                 this.availableRecordsInMemory++;
             final WrappedSamRecord wrappedRecord = headBlock.next();
-            if (headBlock.isEmpty()) { // TODO- need to catch BufferBlock and DiskBackedQueue exceptions here?
+            if (headBlock.hasBeenDrained()) { // TODO- need to catch BufferBlock and DiskBackedQueue exceptions here?
                 blocks.poll(); // remove the block as it is now empty
                 headBlock.clear(); // free any disk io resources associated with empty block
+//                System.out.println("removing block! New num blocks: " + this.blocks.size());
+//                System.out.println("Queue size at removal time: " + this.size());
             }
             this.queueHeadRecordIndex++;
             return wrappedRecord;
@@ -1063,6 +1094,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 this.endIndex = -1;
                 this.wasCheckedIndexes = new byte[maxBlockSize];
                 this.isDuplicateIndexes = new byte[maxBlockSize];
+
+//                System.out.println("creating a new buffer block!");
             }
 
             /**
@@ -1074,6 +1107,15 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             public boolean headRecordIsFromDisk() { return this.recordsQueue.headRecordIsFromDisk(); }
 
+            /**
+             * Check whether we have read all possible records from this block (and it is available to be destroyed)
+             * @return true if we have read the last /possible/ record (ie the block size, or if !canAdd the end index)
+             */
+            public boolean hasBeenDrained() {
+                final int maximalIndex = (this.canAdd()) ? (this.originalStartIndex + this.maxBlockSize) : this.endIndex;
+                return this.currentStartIndex > maximalIndex;       //TODO- watch out for an off by one here
+            }
+
             public int getStartIndex() { return this.currentStartIndex; }
 
             public int getEndIndex() { return this.endIndex; }
@@ -1082,8 +1124,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 if (this.recordsQueue.canAdd()) {
                     if (this.recordsQueue.isEmpty()) {
                         this.currentStartIndex = wrappedRecord.getCoordinateSortedIndex();
-                        this.originalStartIndex = wrappedRecord.getCoordinateSortedIndex();
+//                        this.originalStartIndex = wrappedRecord.getCoordinateSortedIndex();
                         this.endIndex = wrappedRecord.getCoordinateSortedIndex() - 1;
+//                        System.out.println("This block's queue was empty. Adding first record, index: " + wrappedRecord.getCoordinateSortedIndex());
                     }
                     this.recordsQueue.add(wrappedRecord.getRecord());
                     this.endIndex++;
@@ -1134,6 +1177,10 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
              * This must be called when a block is no longer needed in order to prevent memory leaks.
              */
             public void clear() { this.recordsQueue.clear(); }
+
+            public void setOriginalRecordIndex(final int recordIndex) {
+                this.originalStartIndex = recordIndex;
+            }
         }
     }
 }
