@@ -758,6 +758,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         /** The set of all read ends sorted by 5' start unclipped position.  Some read ends in this set may eventually be duplicates. */
         private final TreeSet<ReadEndsMC> set = new TreeSet<ReadEndsMC>(new MarkQueueComparator());
 
+        /** Reads in the main set may occasionally have mates with the same chromosome, coordinate, and orientation, causing collisions
+         * We store the 'best' end of the mate pair in the main set, and the other end in this set.
+         */
+        private final TreeSet<ReadEndsMC> pairSet = new TreeSet<ReadEndsMC>(new MarkQueueComparator());
+
         /** Physical locations used for optical duplicate tracking.  This is only stored for paired end reads where both ends are mapped,
          * and when we see the first mate.
          */
@@ -810,8 +815,19 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
          */
         public ReadEndsMC poll() {
             final ReadEndsMC current = this.set.pollFirst();
+            if (this.pairSet.contains(current)) {
+                final ReadEndsMC pair = this.pairSet.subSet(current, true, current, true).first();
+                alignmentStartSortedBuffer.setDuplicateMarkingFlags(pair.getWrappedRecord(), false);
+                this.pairSet.remove(current);
+
+                // TODO handle metrics updating.
+            }
+
+             // Remove this record's comparable pair, if present.
 
 //            System.out.println("Polling from TMQ. New size: " + this.size());
+
+            // TODO - handle stuff from PairSet.
 
             // If we are a paired read end, we need to make sure we remove unpaired (if we are not also unpaired), as
             // well as fragments from the set, as they should all be duplicates.
@@ -874,41 +890,62 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 if (1 != sortedSet.size()) throw new PicardException("SortedSet should have size one (has size " + sortedSet.size() + " )");
                 final ReadEndsMC current = sortedSet.first();
 
-                // compare "current: with "other"
-                final int comparison = this.comparator.compare(current, other); // if we are to re-add, then other should make this > 0
+                // when checking for a read's pair, must check that read group AND read name match
+                final String currentName = current.getRecord().getAttribute(ReservedTagConstants.READ_GROUP_ID) + ":" + current.getRecord().getReadName();
+                final String otherName = other.getRecord().getAttribute(ReservedTagConstants.READ_GROUP_ID) + ":" + other.getRecord().getReadName();
 
-                if (0 < comparison) { // re-add
-                    if (current.isPaired() && 0 == current.hasUnmapped) {
-                        locationSet = this.locations.remove(current);
+                if (currentName.equals(otherName)) { // "other" is paired-end mate of "current". We need to choose the best end to store in the main set.
+                    // TODO - worry about physical location
+                    final int comparison = this.comparator.compare(current, other);
+                    if (0 < comparison) { // other is the best end. Swap for current.
+                        this.set.remove(current);
+                        this.set.add(other);
+                        this.pairSet.add(current);
+                    } else { // other is less desirable. Store it in the pair set.
+                        this.pairSet.add(other);
                     }
-                    else {
-                        locationSet = new HashSet<PhysicalLocationMC>();
-                    }
-                    this.locations.put(other, locationSet);
-                    this.set.remove(current);
-                    this.set.add(other);
+                } else { // "other" is a unique record at the same location and must be compared against "current"
+                    final int comparison = this.comparator.compare(current, other); // if we are to re-add, then other should make this > 0
 
-                    // current is a now duplicate :/
-//                    current.getRecord().setDuplicateReadFlag(true);     HANDLED BY THE METHOD CALL BELOW
-                    duplicate = current;
-                    alignmentStartSortedBuffer.setDuplicateMarkingFlags(current.getWrappedRecord(), true); // track that this wrappedRecord has been through duplicate marking
+                    if (0 < comparison) { // re-add
+                        if (current.isPaired() && 0 == current.hasUnmapped) {
+                            locationSet = this.locations.remove(current);
+                        }
+                        else {
+                            locationSet = new HashSet<PhysicalLocationMC>();
+                        }
+                        this.locations.put(other, locationSet);
+                        this.set.remove(current);
+                        this.set.add(other);
+
+                        if (this.pairSet.contains(current)) {
+                            final ReadEndsMC pair = this.pairSet.subSet(current, true, current, true).first();
+                            alignmentStartSortedBuffer.setDuplicateMarkingFlags(pair.getWrappedRecord(), true);
+                            // TODO handle metrics updating.
+                        }
+
+                        // current is a now duplicate :/
+                        //                    current.getRecord().setDuplicateReadFlag(true);     HANDLED BY THE METHOD CALL BELOW
+                        duplicate = current;
+                        alignmentStartSortedBuffer.setDuplicateMarkingFlags(current.getWrappedRecord(), true); // track that this wrappedRecord has been through duplicate marking
+                    }
+                    else { // keep current
+                        if (current.isPaired() && 0 == current.hasUnmapped) {
+                            locationSet = this.locations.get(current);
+                        }
+                        // NB: else is technically not needed, since if this was not paired and the other one was, we would enter here and add it later
+
+                        if (0 != comparison) {           // TODO- what happens if 0 DOES == comparison???
+                            // other is a duplicate :/
+                            alignmentStartSortedBuffer.setDuplicateMarkingFlags(other.getWrappedRecord(), true);
+                            duplicate = other;
+                        } else {
+                            alignmentStartSortedBuffer.setDuplicateMarkingFlags(other.getWrappedRecord(), false);
+                        }
+                        //                    isDuplicateMarkedSet.add(getRecordKey(other.getRecord())); // track that this wrappedRecord has been through duplicate marking  HANDELED BY ONE OF THE TWO METHOD CALLS ABOVE
+                    }
                 }
-                else { // keep current
-                    if (current.isPaired() && 0 == current.hasUnmapped) {
-                        locationSet = this.locations.get(current);
-                    }
-                    // NB: else is technically not needed, since if this was not paired and the other one was, we would enter here and add it later
-
-                    if (0 != comparison) {           // TODO- what happens if 0 DOES == comparison???
-                        // other is a duplicate :/
-                        alignmentStartSortedBuffer.setDuplicateMarkingFlags(other.getWrappedRecord(), true);
-                        duplicate = other;
-                    } else {
-                        alignmentStartSortedBuffer.setDuplicateMarkingFlags(other.getWrappedRecord(), false);
-                    }
-//                    isDuplicateMarkedSet.add(getRecordKey(other.getRecord())); // track that this wrappedRecord has been through duplicate marking  HANDELED BY ONE OF THE TWO METHOD CALLS ABOVE
-                }
-            } else { // not in the set
+            } else { // 'other' ReadEndMC is not in the main set, thus the first record at this location. Store it for now.
                 if (other.isPaired() && 0 == other.hasUnmapped) {
                     locationSet = new HashSet<PhysicalLocationMC>();
                     this.locations.put(other, locationSet);
