@@ -38,6 +38,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -952,9 +953,37 @@ public class CommandLineParser {
         }
     }
 
+    /**
+     * Returns the element type of this collection type.
+     * @throws IllegalArgumentException if this type is not a collection.
+     */
+    public static Type getCollectionElementType(Type context, Class<?> contextRawType) {
+        Type collectionType = getSupertype(context, contextRawType, Collection.class);
+
+        if (collectionType instanceof WildcardType) {
+            collectionType = ((WildcardType)collectionType).getUpperBounds()[0];
+        }
+        if (collectionType instanceof ParameterizedType) {
+            return ((ParameterizedType) collectionType).getActualTypeArguments()[0];
+        }
+        return Object.class;
+    }
+
+    /**
+     * Returns the generic form of {@code supertype}. For example, if this is {@code
+     * ArrayList<String>}, this returns {@code Iterable<String>} given the input {@code
+     * Iterable.class}.
+     *
+     * @param supertype a superclass of, or interface implemented by, this.
+     */
+    static Type getSupertype(Type context, Class<?> contextRawType, Class<?> supertype) {
+        return resolve(context, contextRawType,
+                $Gson$Types.getGenericSupertype(context, contextRawType, supertype));
+    }
+    
     private boolean isCollectionField(final Field field) {
         try {
-            field.getType().asSubclass(Collection.class);
+            final Class<? extends Collection> aClass = field.getType().asSubclass(Collection.class);
             return true;
         } catch (ClassCastException e) {
             return false;
@@ -1021,7 +1050,7 @@ public class CommandLineParser {
         }
     }
 
-    private Object constructFromString(final Class clazz, final String s) {
+    static Object constructFromString(final Class clazz, final String s) {
         try {
             if (clazz.isEnum()) {
                 try {
