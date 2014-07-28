@@ -125,25 +125,9 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
             }
 
             // Update the program record if necessary
-            if (PROGRAM_RECORD_ID != null) {
-                final String pgId = record.getStringAttribute(SAMTag.PG.name());
-                if (null == pgId) {
-                    if (!warnedNullProgramRecords) {
-                        warnedNullProgramRecords = true;
-                        log.warn("Encountered a record with no program record, program group chaining will not occur for this read: " + record);
-                    } // else already warned!
-                }
-                else if (!chainedPgIds.containsKey(pgId)) {
-                    if (!warnedMissingProgramRecords) {
-                        warnedMissingProgramRecords = true;
-                        log.warn("Encountered a record with a intermediate program record, program group chaining will not occur for this read: " + record);
-                    } // else already warned!
-                }
-                else {
-                    record.setAttribute(SAMTag.PG.name(), chainedPgIds.get(pgId));
-                }
-            }
+            updateProgramRecord(record, chainedPgIds);
 
+            // Write the alignment
             out.addAlignment(record);
         }
 
@@ -166,6 +150,34 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
         return 0;
     }
 
+    /**
+     * Updates the program record if necessary.
+     */
+    private void updateProgramRecord(final SAMRecord record, final Map<String, String> chainedPgIds) {
+        if (PROGRAM_RECORD_ID != null) {
+            final String pgId = record.getStringAttribute(SAMTag.PG.name());
+            if (null == pgId) {
+                if (!warnedNullProgramRecords) {
+                    warnedNullProgramRecords = true;
+                    log.warn("Encountered a record with no program record, program group chaining will not occur for this read: " + record);
+                } // else already warned!
+            }
+            else if (!chainedPgIds.containsKey(pgId)) {
+                if (!warnedMissingProgramRecords) {
+                    warnedMissingProgramRecords = true;
+                    log.warn("Encountered a record with a intermediate program record, program group chaining will not occur for this read: " + record);
+                } // else already warned!
+            }
+            else {
+                record.setAttribute(SAMTag.PG.name(), chainedPgIds.get(pgId));
+            }
+        }
+    }
+
+    /**
+     * Generate the list of program records seen in the SAM file, approximating this with those in the header that were not
+     * themselves mentioned elsewhere.
+     */
     private void setPGIdsSeen(final SAMFileHeader header) {
         final Set<String> pgIdsSeenAsPrevious = new HashSet<String>();
 
