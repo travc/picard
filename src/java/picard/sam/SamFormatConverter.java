@@ -24,10 +24,12 @@
 package picard.sam;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.ProgressLogger;
@@ -53,8 +55,10 @@ public class SamFormatConverter extends CommandLineProgram {
     public String USAGE = getStandardUsagePreamble() + "Convert a BAM file to a SAM file, or BAM to SAM.\n" + "" +
             "Input and output formats are determined by file extension.";
 
-    @Option(doc="The BAM or SAM file to parse.", shortName= StandardOptionDefinitions.INPUT_SHORT_NAME) public File INPUT;
-    @Option(doc="The BAM or SAM output file. ", shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME) public File OUTPUT;
+    @Option(doc = "The BAM or SAM file to parse.", shortName = StandardOptionDefinitions.INPUT_SHORT_NAME)
+    public File INPUT;
+    @Option(doc = "The BAM or SAM output file. ", shortName = StandardOptionDefinitions.OUTPUT_SHORT_NAME)
+    public File OUTPUT;
 
     public static void main(final String[] argv) {
         new SamFormatConverter().instanceMainWithExit(argv);
@@ -64,10 +68,10 @@ public class SamFormatConverter extends CommandLineProgram {
     protected int doWork() {
         IOUtil.assertFileIsReadable(INPUT);
         IOUtil.assertFileIsWritable(OUTPUT);
-        final SAMFileReader reader = new SAMFileReader(INPUT);
-        final SAMFileWriter writer = new SAMFileWriterFactory().makeSAMOrBAMWriter(reader.getFileHeader(), true, OUTPUT);
+        final SamReader reader = SamReaderFactory.makeDefault().open(INPUT);
+        final SAMFileWriter writer = new SAMFileWriterFactory().makeWriter(reader.getFileHeader(), true, OUTPUT);
 
-        if  (CREATE_INDEX && writer.getFileHeader().getSortOrder() != SAMFileHeader.SortOrder.coordinate){
+        if (CREATE_INDEX && writer.getFileHeader().getSortOrder() != SAMFileHeader.SortOrder.coordinate) {
             throw new PicardException("Can't CREATE_INDEX unless sort order is coordinate");
         }
 
@@ -76,7 +80,7 @@ public class SamFormatConverter extends CommandLineProgram {
             writer.addAlignment(rec);
             progress.record(rec);
         }
-        reader.close();
+        CloserUtil.close(reader);
         writer.close();
         return 0;
     }

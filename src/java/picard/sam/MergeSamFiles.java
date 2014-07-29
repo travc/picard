@@ -31,6 +31,8 @@ import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamFileHeaderMerger;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.ProgressLogger;
@@ -92,14 +94,14 @@ public class MergeSamFiles extends CommandLineProgram {
         boolean matchedSortOrders = true;
 
         // Open the files for reading and writing
-        final List<SAMFileReader> readers = new ArrayList<SAMFileReader>();
+        final List<SamReader> readers = new ArrayList<SamReader>();
         final List<SAMFileHeader> headers = new ArrayList<SAMFileHeader>();
         {
             SAMSequenceDictionary dict = null; // Used to try and reduce redundant SDs in memory
 
             for (final File inFile : INPUT) {
                 IOUtil.assertFileIsReadable(inFile);
-                final SAMFileReader in = new SAMFileReader(inFile);
+                final SamReader in = SamReaderFactory.makeDefault().open(inFile);
                 readers.add(in);
                 headers.add(in.getFileHeader());
 

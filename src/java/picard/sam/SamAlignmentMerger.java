@@ -12,6 +12,8 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamPairUtil;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.DelegatingIterator;
@@ -166,9 +168,9 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
         // When the alignment records, including both ends of a pair, are in SAM files
         if (alignedSamFile != null && alignedSamFile.size() > 0) {
             final List<SAMFileHeader> headers = new ArrayList<SAMFileHeader>(alignedSamFile.size());
-            final List<SAMFileReader> readers = new ArrayList<SAMFileReader>(alignedSamFile.size());
+            final List<SamReader> readers = new ArrayList<SamReader>(alignedSamFile.size());
             for (final File f : this.alignedSamFile) {
-                final SAMFileReader r = new SAMFileReader(f);
+                final SamReader r = SamReaderFactory.makeDefault().open(f);
                 headers.add(r.getFileHeader());
                 readers.add(r);
             }
@@ -258,15 +260,15 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
 
         public SeparateEndAlignmentIterator(final List<File> read1Alignments, final List<File> read2Alignments) {
             final List<SAMFileHeader> headers = new ArrayList<SAMFileHeader>();
-            final List<SAMFileReader> read1 = new ArrayList<SAMFileReader>(read1Alignments.size());
-            final List<SAMFileReader> read2 = new ArrayList<SAMFileReader>(read2Alignments.size());
+            final List<SamReader> read1 = new ArrayList<SamReader>(read1Alignments.size());
+            final List<SamReader> read2 = new ArrayList<SamReader>(read2Alignments.size());
             for (final File f : read1Alignments) {
-                final SAMFileReader r = new SAMFileReader(f);
+                final SamReader r = SamReaderFactory.makeDefault().open(f);
                 headers.add(r.getFileHeader());
                 read1.add(r);
             }
             for (final File f : read2Alignments) {
-                final SAMFileReader r = new SAMFileReader(f);
+                final SamReader r = SamReaderFactory.makeDefault().open(f);
                 headers.add(r.getFileHeader());
                 read2.add(r);
             }

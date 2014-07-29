@@ -23,10 +23,11 @@
  */
 package picard.sam;
 
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMValidationError;
 import htsjdk.samtools.SamFileValidator;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -55,12 +56,11 @@ public class CleanSamTest {
         validator.setIgnoreWarnings(true);
         validator.setVerbose(true, 1000);
         validator.setErrorsToIgnore(Arrays.asList(SAMValidationError.Type.MISSING_READ_GROUP));
-        SAMFileReader samReader = new SAMFileReader(cleanedFile);
-        samReader.setValidationStringency(ValidationStringency.LENIENT);
+        SamReader samReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT).open(cleanedFile);
         final SAMRecord rec = samReader.iterator().next();
         samReader.close();
         Assert.assertEquals(rec.getCigarString(), expectedCigar);
-        samReader = new SAMFileReader(cleanedFile);
+        samReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.LENIENT).open(cleanedFile);
         final boolean validated = validator.validateSamFileVerbose(samReader, null);
         samReader.close();
         Assert.assertTrue(validated, "ValidateSamFile failed");

@@ -28,7 +28,6 @@ import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.ReservedTagConstants;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMProgramRecord;
@@ -36,6 +35,8 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamFileHeaderMerger;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Histogram;
@@ -220,9 +221,9 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
             chainedPgIds = null;
         }
 
-        final SAMFileWriter out = new SAMFileWriterFactory().makeSAMOrBAMWriter(outputHeader,
-                                                                                true,
-                                                                                OUTPUT);
+        final SAMFileWriter out = new SAMFileWriterFactory().makeWriter(outputHeader,
+                true,
+                OUTPUT);
 
         // Now copy over the file while marking all the necessary indexes as duplicates
         long recordInFileIndex = 0;
@@ -359,10 +360,10 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
      */
     private SamHeaderAndIterator openInputs() {
         final List<SAMFileHeader> headers = new ArrayList<SAMFileHeader>(INPUT.size());
-        final List<SAMFileReader> readers = new ArrayList<SAMFileReader>(INPUT.size());
+        final List<SamReader> readers = new ArrayList<SamReader>(INPUT.size());
 
         for (final File f : INPUT) {
-            final SAMFileReader reader = new SAMFileReader(f);
+            final SamReader reader = SamReaderFactory.makeDefault().open(f);
             final SAMFileHeader header = reader.getFileHeader();
 
             if (!ASSUME_SORTED && header.getSortOrder() != SortOrder.coordinate) {

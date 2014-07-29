@@ -29,6 +29,8 @@ import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SecondaryOrSupplementarySkippingIterator;
 import picard.PicardException;
 import picard.cmdline.CommandLineProgram;
@@ -58,7 +60,7 @@ public class CompareSAMs extends CommandLineProgram {
     @PositionalArguments(minElements = 2, maxElements = 2)
     public List<File> samFiles;
 
-    private final SAMFileReader[] samReaders = new SAMFileReader[2];
+    private final SamReader[] samReaders = new SamReader[2];
     private boolean sequenceDictionariesDiffer;
     private int mappingsMatch = 0;
     private int unmappedBoth = 0;
@@ -82,7 +84,7 @@ public class CompareSAMs extends CommandLineProgram {
     @Override
     protected int doWork() {
         for (int i = 0; i < samFiles.size(); ++i) {
-            samReaders[i] = new SAMFileReader(samFiles.get(i));
+            samReaders[i] = SamReaderFactory.makeDefault().open(samFiles.get(i));
         }
         areEqual = compareHeaders();
         areEqual = compareAlignments() && areEqual;

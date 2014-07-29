@@ -36,6 +36,8 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamPairUtil;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.PeekableIterator;
@@ -96,10 +98,10 @@ public class FixMateInformation extends CommandLineProgram {
     protected int doWork() {
         // Open up the input
         boolean allQueryNameSorted = true;
-        final List<SAMFileReader> readers = new ArrayList<SAMFileReader>();
+        final List<SamReader> readers = new ArrayList<SamReader>();
         for (final File f : INPUT) {
             IOUtil.assertFileIsReadable(f);
-            final SAMFileReader reader = new SAMFileReader(f);
+            final SamReader reader = SamReaderFactory.makeDefault().open(f);
             readers.add(reader);
             if (reader.getFileHeader().getSortOrder() != SortOrder.queryname) allQueryNameSorted = false;
         }
@@ -137,7 +139,7 @@ public class FixMateInformation extends CommandLineProgram {
             final Iterator<SAMRecord> tmp;
             if (INPUT.size() > 1) {
                 final List<SAMFileHeader> headers = new ArrayList<SAMFileHeader>(readers.size());
-                for (final SAMFileReader reader : readers) {
+                for (final SamReader reader : readers) {
                     headers.add(reader.getFileHeader());
                 }
                 final SortOrder sortOrder = (allQueryNameSorted? SortOrder.queryname: SortOrder.unsorted);
