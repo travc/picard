@@ -47,6 +47,8 @@ class ReadEnds implements MarkDuplicates.PhysicalLocation {
     short x = -1, y = -1;
 
 
+    byte orientationForOpticalDuplicates;
+
     boolean isPaired() { return this.read2Sequence != -1; }
 
     public short getReadGroup() { return this.readGroup; }

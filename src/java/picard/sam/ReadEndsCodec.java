@@ -72,6 +72,7 @@ class ReadEndsCodec implements SortingCollection.Codec<ReadEnds> {
             this.out.writeShort(read.tile);
             this.out.writeShort(read.x);
             this.out.writeShort(read.y);
+            this.out.writeByte(read.orientationForOpticalDuplicates);
         }
         catch (IOException ioe) {
             throw new PicardException("Exception writing ReadEnds to file.", ioe);
@@ -101,6 +102,7 @@ class ReadEndsCodec implements SortingCollection.Codec<ReadEnds> {
             read.tile      = this.in.readShort();
             read.x         = this.in.readShort();
             read.y         = this.in.readShort();
+            read.orientationForOpticalDuplicates = this.in.readByte();
 
             return read;
         }
