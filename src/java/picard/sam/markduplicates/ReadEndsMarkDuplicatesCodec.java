@@ -67,6 +67,9 @@ class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMar
             this.out.writeShort(read.tile);
             this.out.writeShort(read.x);
             this.out.writeShort(read.y);
+            this.out.writeInt(read.name.length());
+            this.out.writeBytes(read.name);
+            this.out.writeByte(read.orientationForOpticalDuplicates);
         }
         catch (IOException ioe) {
             throw new PicardException("Exception writing ReadEnds to file.", ioe);
@@ -96,6 +99,12 @@ class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMar
             read.tile      = this.in.readShort();
             read.x         = this.in.readShort();
             read.y         = this.in.readShort();
+
+            byte[] bytes = new byte[this.in.readInt()];
+            this.in.read(bytes);
+            read.name = new String(bytes);
+
+            read.orientationForOpticalDuplicates = this.in.readByte();
 
             return read;
         }

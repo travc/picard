@@ -24,6 +24,7 @@
 
 package picard.sam.markduplicates;
 
+import picard.PicardException;
 import picard.cmdline.Option;
 import picard.sam.DuplicationMetrics;
 import htsjdk.samtools.ReservedTagConstants;
@@ -77,6 +78,10 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
 
     // Variables used for optical duplicate detection and tracking
     private final Histogram<Short> opticalDupesByLibraryId = new Histogram<Short>();
+
+    private List<ReadEndsMarkDuplicates> trackOpticalDuplicatesF = new ArrayList<ReadEndsMarkDuplicates>(1000);
+    private List<ReadEndsMarkDuplicates> trackOpticalDuplicatesR = new ArrayList<ReadEndsMarkDuplicates>(1000);
+
 
     /** Stock main method. */
     public static void main(final String[] args) {
@@ -272,6 +277,15 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
                         final int sequence = fragmentEnd.read1Sequence;
                         final int coordinate = fragmentEnd.read1Coordinate;
 
+                        // Set orientationForOpticalDuplicates, which always goes by the first then the second end for the strands.  NB: must do this
+                        // before updating the orientation later.
+                        if (rec.getFirstOfPairFlag()) {
+                            pairedEnds.orientationForOpticalDuplicates = ReadEnds.getOrientationByte(rec.getReadNegativeStrandFlag(), pairedEnds.orientation == ReadEnds.R);
+                        }
+                        else {
+                            pairedEnds.orientationForOpticalDuplicates = ReadEnds.getOrientationByte(pairedEnds.orientation == ReadEnds.R, rec.getReadNegativeStrandFlag());
+                        }
+
                         // If the second read is actually later, just add the second read data, else flip the reads
                         if (sequence > pairedEnds.read1Sequence ||
                                 (sequence == pairedEnds.read1Sequence && coordinate >= pairedEnds.read1Coordinate)) {
@@ -291,6 +305,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
                             pairedEnds.orientation = ReadEnds.getOrientationByte(rec.getReadNegativeStrandFlag(),
                                     pairedEnds.orientation == ReadEnds.R);
                         }
+
 
                         pairedEnds.score += getScore(rec);
                         this.pairSort.add(pairedEnds);
@@ -321,6 +336,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         ends.orientation = rec.getReadNegativeStrandFlag() ? ReadEnds.R : ReadEnds.F;
         ends.read1IndexInFile = index;
         ends.score = getScore(rec);
+        ends.name = rec.getReadName();
 
         // Doing this lets the ends object know that it's part of a pair
         if (rec.getReadPairedFlag() && !rec.getMateUnmappedFlag()) {
@@ -407,7 +423,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
                 firstOfNextChunk = next;
             }
         }
-        markDuplicatePairs(nextChunk);
+        if (nextChunk.size() > 1) markDuplicatePairs(nextChunk);
         this.pairSort.cleanup();
         this.pairSort = null;
 
@@ -470,11 +486,19 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
     private void markDuplicatePairs(final List<ReadEndsMarkDuplicates> list) {
         short maxScore = 0;
         ReadEndsMarkDuplicates best = null;
+        boolean hasFR = false, hasRF = false;
 
+        /** All read ends should have orientation FF, FR, RF, or RR **/
         for (final ReadEndsMarkDuplicates end : list) {
             if (end.score > maxScore || best == null) {
                 maxScore = end.score;
                 best = end;
+            }
+            if (ReadEnds.FR == end.orientationForOpticalDuplicates) {
+                hasFR = true;
+            }
+            else if(ReadEnds.RF == end.orientationForOpticalDuplicates) {
+                hasRF = true;
             }
         }
 
@@ -485,7 +509,32 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
             }
         }
 
-        AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(list, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
+        // Check if we need to partition since the orientations could have changed
+        if (hasFR && hasRF) { // need to track them independently
+            // Split into two lists: first of pairs and second of pairs, since they must have orientation and same starting end
+            for (final ReadEndsMarkDuplicates end : list) {
+                if (ReadEnds.FR == end.orientationForOpticalDuplicates) {
+                    trackOpticalDuplicatesF.add(end);
+                }
+                else if (ReadEnds.RF == end.orientationForOpticalDuplicates) {
+                    trackOpticalDuplicatesR.add(end);
+                }
+                else {
+                    throw new PicardException("Found an unexpected orientation: " + end.orientation);
+                }
+            }
+
+            // track the duplicates
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesF, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesR, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
+
+            // clear the list
+            trackOpticalDuplicatesF.clear();
+            trackOpticalDuplicatesR.clear();
+        }
+        else { // No need to partition
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(list, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
+        }
     }
 
     /**

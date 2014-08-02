@@ -46,7 +46,6 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
         tester.runTest();
     }
 
-
     @Test
     public void testSingleMappedFragment() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
@@ -135,6 +134,24 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
                            false, false, DEFAULT_BASE_QUALITY); // duplicate pair, NOT optical duplicate (delta-Y > 100)
         tester.addMatePair("READ2:1:1:1:50", 1, 1, 100, false, false, true, true, "50M", "50M", false, true, false,
                            false, false, DEFAULT_BASE_QUALITY); // duplicate pair, expected optical duplicate (delta-X and delta-Y < 100)
+        tester.runTest();
+    }
+
+    @Test
+    public void testOpticalDuplicateClusterSamePosition() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.setExpectedOpticalDuplicate(0);
+        tester.addMatePair("RUNID:7:1203:2886:82292", 1, 485253, 485253, false, false, true, true, "42M59S", "59S42M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair("RUNID:7:1203:2884:16834", 1, 485253, 485253, false, false, false, false, "59S42M", "42M59S", true, false, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
+
+    @Test
+    public void testOpticalDuplicateClusterOneEndSamePositionNoCluster() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.setExpectedOpticalDuplicate(1);
+        tester.addMatePair("RUNID:7:2205:17939:39728", 1, 485328, 485312, false, false, false, false, "55M46S", "30S71M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair("RUNID:7:2205:17949:39745", 1, 485328, 485328, false, false, true, true, "55M46S", "46S55M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
 
@@ -242,6 +259,17 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
         tester.runTest();
     }
 
+    // TODO: fails on MarkDuplicatesWithMateCigar
+    @Test
+    public void testMappedPairAndMatePairFirstOppositeStrandSecondUnmapped() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        // first end mapped OK -, second end unmapped
+        tester.addMatePair(1, 484071, 484071, false, true, false, false,  "66S35M", null, true, false, false, false, false, DEFAULT_BASE_QUALITY);
+        // mapped OK +/-
+        tester.addMappedPair(1, 484105, 484075, false, false, "35M66S", "30S71M", false, true, false, DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
+
     @Test
     public void testMappedPairAndMappedFragmentAndMatePairSecondUnmapped() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
@@ -310,6 +338,22 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.addMappedPair(0, 5604914, 5604914, false, false, "37M39S", "73M3S", false, false, false, DEFAULT_BASE_QUALITY); // +/+
         tester.addMappedPair(0, 5604914, 5604914, true, true, "37M39S", "73M3S", false, false, false, DEFAULT_BASE_QUALITY); // +/+
+        tester.runTest();
+    }
+
+    @Test
+    public void testTwoMappedPairWithSamePositionDifferentStrands() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedPair(0, 5604914, 5604914, false, false, "50M", "50M", true, false, false, DEFAULT_BASE_QUALITY); // +/-
+        tester.addMappedPair(0, 5604914, 5604914, true, true, "50M", "50M", false, true, false, DEFAULT_BASE_QUALITY); // -/+
+        tester.runTest();
+    }
+
+    @Test
+    public void testTwoMappedPairWithSamePositionDifferentStrands2() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedPair(0, 5604914, 5604915, false, false, "50M", "50M", true, false, false, DEFAULT_BASE_QUALITY); // +/-
+        tester.addMappedPair(0, 5604915, 5604914, true, true, "50M", "50M", false, true, false, DEFAULT_BASE_QUALITY); // -/+
         tester.runTest();
     }
 

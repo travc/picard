@@ -12,4 +12,6 @@ class ReadEndsMarkDuplicates extends ReadEnds {
     short score = 0;
     long read1IndexInFile = -1;
     long read2IndexInFile = -1;
+    String name = "";
+    byte orientationForOpticalDuplicates;
 }
