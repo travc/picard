@@ -964,11 +964,12 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                         this.set.remove(current);
                         this.set.add(other);
 
-                        // update the pair set in case current's pair is in taht set
+                        // update the pair set in case current's pair is in that set
                         if (this.pairSet.contains(current)) {
                             final ReadEndsMC pair = this.pairSet.subSet(current, true, current, true).first();
                             alignmentStartSortedBuffer.setDuplicateMarkingFlags(pair.getWrappedRecord(), true);
                             updateMetrics(pair);
+                            this.pairSet.remove(current);
                         }
 
                         // current is a now duplicate :/
@@ -1109,6 +1110,22 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
          */
         public int size() { return this.queueTailRecordIndex - this.queueHeadRecordIndex + 1; }
 
+        private BufferBlock getBlock(final WrappedSamRecord wrappedRecord) {
+            for (final BufferBlock block : this.blocks) {
+                if (block.getStartIndex() <= wrappedRecord.getCoordinateSortedIndex() && block.getEndIndex() >= wrappedRecord.getCoordinateSortedIndex()) {
+                    return block;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * TODO: document
+         */
+        public boolean contains(final WrappedSamRecord wrappedRecord) {
+            return (null != getBlock(wrappedRecord));
+        }
+
         /**
          * Mark the current wrappedRecord as having been through duplicate-marking, and whether it is a duplicate
          *
@@ -1117,16 +1134,12 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
          * @throws PicardException if the provided recordIndex is not found within the DuplicateMarkingBuffer
          */
         public void setDuplicateMarkingFlags(final WrappedSamRecord wrappedRecord, final boolean isDuplicate) {
-            boolean foundABlock = false;
-            for (final BufferBlock block : this.blocks) {
-                if (block.getStartIndex() <= wrappedRecord.getCoordinateSortedIndex() && block.getEndIndex() >= wrappedRecord.getCoordinateSortedIndex()) {
-                    block.setDuplicateMarkingIndexes(wrappedRecord, isDuplicate);
-                    foundABlock = true;
-                    break;
-                }
+            BufferBlock block = getBlock(wrappedRecord);
+            if (null == block) {
+                throw new PicardException("Attempted to set duplicate-marking information on a wrappedRecord whose index is not found " +
+                        "in the DuplicateMarkingBuffer. recordIndex: " + wrappedRecord.getCoordinateSortedIndex());
             }
-            if (!foundABlock) throw new PicardException("Attempted to set duplicate-marking information on a wrappedRecord whose index is not found " +
-                    "in the DuplicateMarkingBuffer. recordIndex: " + wrappedRecord.getCoordinateSortedIndex());
+            block.setDuplicateMarkingIndexes(wrappedRecord, isDuplicate);
         }
 
         /**

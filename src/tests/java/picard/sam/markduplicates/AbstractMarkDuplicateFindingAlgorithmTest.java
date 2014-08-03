@@ -23,8 +23,15 @@
  */
 package picard.sam.markduplicates;
 
-import picard.PicardException;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.util.CloserUtil;
+import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.io.File;
+import java.util.ArrayList;
 
 public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
 
@@ -432,6 +439,21 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
             tester.addMappedFragment(0, position, true, "100M", DEFAULT_BASE_QUALITY);
             tester.addMappedFragment(0, position, true, "100M", DEFAULT_BASE_QUALITY);
         }
+        tester.runTest();
+    }
+
+    @Test
+    public void testStackOverFlowPairSetSwap() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+
+        File input = new File("testdata/picard/sam/MarkDuplicates/markDuplicatesWithMateCigar.pairSet.swap.sam");
+        SamReader reader = SamReaderFactory.makeDefault().open(input);
+        tester.setHeader(reader.getFileHeader());
+        for (final SAMRecord record : reader) {
+            tester.addRecord(record);
+        }
+        CloserUtil.close(reader);
+        tester.setExpectedOpticalDuplicate(1);
         tester.runTest();
     }
 }

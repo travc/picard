@@ -46,6 +46,15 @@ public abstract class SamFileTester {
         setOutputDir();
     }
 
+    public void setHeader(final SAMFileHeader header) {
+        this.samRecordSetBuilder.setHeader(header);
+    }
+
+    public void addRecord(final SAMRecord record) {
+        this.duplicateFlags.put(samRecordToDuplicatesFlagsKey(record), record.getDuplicateReadFlag());
+        this.samRecordSetBuilder.addRecord(record);
+    }
+
     public int getNumberOfRecords() {
         return this.samRecordSetBuilder.size();
     }
@@ -61,6 +70,7 @@ public abstract class SamFileTester {
     public void setOutput(final File output) {
         this.output = output;
     }
+
 
     public void addArg(final String arg) {
         args.add(arg);
