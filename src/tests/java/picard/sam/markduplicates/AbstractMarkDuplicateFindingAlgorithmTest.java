@@ -456,4 +456,11 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
         tester.setExpectedOpticalDuplicate(1);
         tester.runTest();
     }
+
+    @Test
+    public void testSecondEndIsBeforeFirstInCoordinate() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedPair(0, 108855339, 108855323, false, false, "33S35M", "17S51M", true, true, false, DEFAULT_BASE_QUALITY); // +/-
+        tester.runTest();
+    }
 }

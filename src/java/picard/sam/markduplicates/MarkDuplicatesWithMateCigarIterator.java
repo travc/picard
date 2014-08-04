@@ -935,17 +935,29 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                     //System.err.println("TMQ add: other contains : name equals " + other.getRecord().getSAMString());
                     final int comparison = this.comparator.compare(current, other);
                     if (0 < comparison) { // other is the best end. Swap for current.
-                        //System.err.println("TMQ add: other contains : name equals : swap" + other.getRecord().getSAMString());
+                        //System.err.println("TMQ add: other contains : name equals : swap : " + other.getRecord().getSAMString());
                         // Swap the set
                         this.set.remove(current);
                         this.set.add(other);
                         this.pairSet.add(current);
                         // Swap "current" and "other" in the locations
-                        this.locations.put(other, this.locations.remove(current));
+                        if (shouldBeInLocations(other)) {
+                            this.locations.put(other, locationSet = this.locations.remove(current));
+                        }
                     } else { // other is less desirable. Store it in the pair set.
+                        //System.err.println("TMQ add: other contains : name equals : no swap : " + other.getRecord().getSAMString());
                         this.pairSet.add(other);
+                        /*
+                        if (!this.locations.containsKey(current)) {
+                            locationSet = new HashSet<PhysicalLocationMC>();
+                            this.locations.put(current, locationSet);
+                        }
+                        */
+                        if (shouldBeInLocations(current)) {
+                            locationSet = this.locations.get(current);
+                        }
                     }
-
+                    //System.err.println("TMQ add: other contains : name equals : DONE : " + other.getRecord().getSAMString());
                 } else { // "other" is a unique record at the same location and must be compared against "current"
                     //System.err.println("TMQ add: other contains : name not equals " + other.getRecord().getSAMString());
                     final int comparison = this.comparator.compare(current, other); // if we are to re-add, then other should make this > 0
@@ -1004,6 +1016,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                     && !record.getReadUnmappedFlag()
                     && !record.getMateUnmappedFlag()
                     && record.getFirstOfPairFlag()) { // only first of pairs!
+                if (null == locationSet) throw new PicardException("location set was null: " + record.getSAMString());
                 locationSet.add(new PhysicalLocationMC(other));
             }
             // NB: locationSet can be empty, presumably when the second end of a pair is added first
