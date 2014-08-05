@@ -1,4 +1,4 @@
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 import picard.PicardException;
 import picard.cmdline.CommandLineParser;
@@ -110,9 +110,12 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         return chainedPgIds;
     }
 
-    protected void writeMetrics(final Map<String,DuplicationMetrics> metricsByLibrary,
-                                final Histogram<Short> opticalDupesByLibraryId,
-                                final Map<String,Short> libraryIds) {
+    protected void writeMetrics(final LibraryIdGenerator libraryIdGenerator) {
+
+        final Map<String,DuplicationMetrics> metricsByLibrary = libraryIdGenerator.getMetricsByLibraryMap();
+        final Histogram<Short> opticalDupesByLibraryId = libraryIdGenerator.getOpticalDupesByLibraryIdMap();
+        final Map<String,Short> libraryIds = libraryIdGenerator.getLibraryIdsMap();
+
         // Write out the metrics
         final MetricsFile<DuplicationMetrics,Double> file = getMetricsFile();
         for (final Map.Entry<String,DuplicationMetrics> entry : metricsByLibrary.entrySet()) {
@@ -176,11 +179,11 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
     }
 
     /** Little class used to package up a header and an iterable/iterator. */
-    protected static final class SamHeaderAndIterator {
-        final SAMFileHeader header;
-        final CloseableIterator<SAMRecord> iterator;
+    public static final class SamHeaderAndIterator {
+        public final SAMFileHeader header;
+        public final CloseableIterator<SAMRecord> iterator;
 
-        protected SamHeaderAndIterator(final SAMFileHeader header, final CloseableIterator<SAMRecord> iterator) {
+        public SamHeaderAndIterator(final SAMFileHeader header, final CloseableIterator<SAMRecord> iterator) {
             this.header = header;
             this.iterator = iterator;
         }
@@ -221,7 +224,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
      * Looks through the set of reads and identifies how many of the duplicates are
      * in fact optical duplicates, and stores the data in the instance level histogram.
      */
-    protected static void trackOpticalDuplicates(final List<? extends OpticalDuplicateFinder.PhysicalLocation> list,
+    public static void trackOpticalDuplicates(final List<? extends OpticalDuplicateFinder.PhysicalLocation> list,
                                                  final OpticalDuplicateFinder opticalDuplicateFinder,
                                                  final Histogram<Short> opticalDupesByLibraryId) {
 
@@ -234,22 +237,5 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         }
     }
 
-    /**
-     * Gets the library name from the header for the record. If the RG tag is not present on
-     * the record, or the library isn't denoted on the read group, a constant string is
-     * returned.
-     */
-    public static String getLibraryName(final SAMFileHeader header, final SAMRecord rec) {
-        final String readGroupId = (String) rec.getAttribute("RG");
 
-        if (readGroupId != null) {
-            final SAMReadGroupRecord rg = header.getReadGroup(readGroupId);
-            if (rg != null) {
-                final String libraryName = rg.getLibrary();
-                if (null != libraryName) return libraryName;
-            }
-        }
-
-        return "Unknown Library";
-    }
 }

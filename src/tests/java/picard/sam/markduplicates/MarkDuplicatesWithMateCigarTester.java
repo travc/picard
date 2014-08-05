@@ -1,14 +1,14 @@
 package picard.sam.markduplicates;
 
+import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 import picard.cmdline.CommandLineProgram;
-import picard.sam.markduplicates.MarkDuplicatesWithMateCigar;
 
 public class MarkDuplicatesWithMateCigarTester extends AbstractMarkDuplicateFindingAlgorithmTester {
 
-    public MarkDuplicatesWithMateCigarTester(final String scoringStrategy) {
-        super();
+    public MarkDuplicatesWithMateCigarTester() {
+        // NB: to be equivalent to MarkDuplicates we need to use SUM_OF_BASE_QUALITIES
+        super(ScoringStrategy.SUM_OF_BASE_QUALITIES);
 
-        addArg("SCORING_STRATEGY=" + scoringStrategy);
         addArg("MAX_RECORDS_IN_RAM=1000");
         addArg("BLOCK_SIZE=250");
     }

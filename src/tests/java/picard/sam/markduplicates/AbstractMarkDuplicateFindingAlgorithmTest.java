@@ -26,10 +26,12 @@ package picard.sam.markduplicates;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.Closeable;
 import java.io.File;
 import java.util.ArrayList;
 
@@ -461,6 +463,32 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     public void testSecondEndIsBeforeFirstInCoordinate() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.addMappedPair(0, 108855339, 108855323, false, false, "33S35M", "17S51M", true, true, false, DEFAULT_BASE_QUALITY); // +/-
+        tester.runTest();
+    }
+
+    @Test
+    public void testPathologicalOrderingAtTheSamePosition() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.setExpectedOpticalDuplicate(1);
+        tester.addMatePair("RUNID:3:1:15013:113051", 0, 129384554, 129384554, false, false, false, false, "68M", "68M", false, false, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair("RUNID:3:1:15029:113060", 0, 129384554, 129384554, false, false, true, true, "68M", "68M", false, false, false, false, false, DEFAULT_BASE_QUALITY);
+
+        // Create the pathology
+        CloseableIterator<SAMRecord> iterator = tester.getRecordIterator();
+        int[] qualityOffset = {20, 30, 10, 40}; // creates an interesting pathological ordering
+        int index = 0;
+        while (iterator.hasNext()) {
+            final SAMRecord record = iterator.next();
+            byte[] quals = new byte[record.getReadLength()];
+            for (int i = 0; i < record.getReadLength(); i++) {
+                quals[i] = (byte)(qualityOffset[index] + 10);
+            }
+            record.setBaseQualities(quals);
+            index++;
+        }
+        iterator.close();
+
+        // Run the test
         tester.runTest();
     }
 }

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 import picard.PicardException;
 import htsjdk.samtools.CoordinateSortedPairInfoMap;
@@ -50,9 +50,9 @@ import java.util.*;
  * 
  * @author alecw@broadinstitute.org
  */
-class DiskReadEndsMarkDuplicatesMap implements ReadEndsMarkDuplicatesMap {
+public class DiskReadEndsMarkDuplicatesMap implements ReadEndsMarkDuplicatesMap {
     private final CoordinateSortedPairInfoMap<String, ReadEndsMarkDuplicates> pairInfoMap;
-    DiskReadEndsMarkDuplicatesMap(int maxOpenFiles) {
+    public DiskReadEndsMarkDuplicatesMap(int maxOpenFiles) {
         pairInfoMap = new CoordinateSortedPairInfoMap<String, ReadEndsMarkDuplicates>(maxOpenFiles, new Codec());
     }
 

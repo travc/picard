@@ -17,6 +17,8 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StringUtil;
+import picard.sam.markduplicates.util.AbstractDuplicateFindingAlgorithm;
+import picard.sam.markduplicates.util.OpticalDuplicateFinder;
 
 import java.io.*;
 import java.util.*;

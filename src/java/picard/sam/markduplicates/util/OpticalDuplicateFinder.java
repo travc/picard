@@ -1,4 +1,4 @@
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 import picard.cmdline.Option;
 import htsjdk.samtools.util.Log;
@@ -80,7 +80,7 @@ public class OpticalDuplicateFinder {
      * @return true if the read name contained the information in parsable form, false otherwise
      */
     private final int[] tmpLocationFields = new int[10];
-    boolean addLocationInformation(final String readName, final PhysicalLocation loc) {
+    public boolean addLocationInformation(final String readName, final PhysicalLocation loc) {
         // Optimized version if using the default read name regex (== used on purpose):
         if (this.readNameRegex == this.DEFAULT_READ_NAME_REGEX) {
             final int fields = getRapidDefaultReadNameRegexSplit(readName, ':', tmpLocationFields);
@@ -188,7 +188,7 @@ public class OpticalDuplicateFinder {
      * @param list a list of reads that are determined to be duplicates of one another
      * @return a boolean[] of the same length as the incoming list marking which reads are optical duplicates
      */
-    boolean[] findOpticalDuplicates(final List<? extends PhysicalLocation> list) {
+    public boolean[] findOpticalDuplicates(final List<? extends PhysicalLocation> list) {
         final int length = list.size();
         final boolean[] opticalDuplicateFlags = new boolean[length];
 

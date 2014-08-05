@@ -1,17 +1,17 @@
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 /**
  *  Little struct-like class to hold read pair (and fragment) end data for MarkDuplicates
  * @author Nils Homer
  */
-class ReadEndsMarkDuplicates extends ReadEnds {
+public class ReadEndsMarkDuplicates extends ReadEnds {
     public static final int SIZE_OF = (1*1) + (2*1) + (4*4) + (8*2) + 2 + 1 + 2 + 2
             + 8 + // last 8 == reference overhead
             13; // This is determined experimentally with JProfiler
 
-    short score = 0;
-    long read1IndexInFile = -1;
-    long read2IndexInFile = -1;
-    String name = "";
-    byte orientationForOpticalDuplicates;
+    public short score = 0;
+    public long read1IndexInFile = -1;
+    public long read2IndexInFile = -1;
+    public String name = "";
+    public byte orientationForOpticalDuplicates;
 }

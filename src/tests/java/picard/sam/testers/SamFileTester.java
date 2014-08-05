@@ -1,5 +1,6 @@
 package picard.sam.testers;
 
+import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
@@ -32,18 +33,19 @@ public abstract class SamFileTester {
     private boolean deleteOnExit = true;
     private final ArrayList<String> args = new ArrayList<String>();
 
-    public SamFileTester(final int readLength, final boolean deleteOnExit, final int defaultChromosomeLength) {
+    public SamFileTester(final int readLength, final boolean deleteOnExit, final int defaultChromosomeLength, final ScoringStrategy duplicateScoringStrategy) {
         this.deleteOnExit = deleteOnExit;
-        this.samRecordSetBuilder = new SAMRecordSetBuilder(true, SAMFileHeader.SortOrder.coordinate, true, defaultChromosomeLength);
+        this.samRecordSetBuilder = new SAMRecordSetBuilder(true, SAMFileHeader.SortOrder.coordinate, true, defaultChromosomeLength, duplicateScoringStrategy);
         samRecordSetBuilder.setReadLength(readLength);
         setOutputDir();
     }
 
+    public SamFileTester(final int readLength, final boolean deleteOnExit, final int defaultChromosomeLength) {
+        this(readLength, deleteOnExit, defaultChromosomeLength, SAMRecordSetBuilder.DEFAULTS_DUPLICATE_SCORING_STRATEGY);
+    }
+
     public SamFileTester(final int readLength, final boolean deleteOnExit) {
-        this.deleteOnExit = deleteOnExit;
-        this.samRecordSetBuilder = new SAMRecordSetBuilder();
-        samRecordSetBuilder.setReadLength(readLength);
-        setOutputDir();
+        this(readLength, deleteOnExit, SAMRecordSetBuilder.DEFAULT_CHROMOSOME_LENGTH);
     }
 
     public void setHeader(final SAMFileHeader header) {

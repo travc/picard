@@ -1,5 +1,6 @@
 package picard.sam.markduplicates;
 
+import htsjdk.samtools.SAMRecordSetBuilder;
 import picard.sam.DuplicationMetrics;
 import picard.cmdline.CommandLineProgram;
 import htsjdk.samtools.metrics.MetricsFile;
@@ -9,6 +10,7 @@ import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.TestUtil;
+import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 import org.testng.Assert;
 
 import java.io.File;
@@ -23,14 +25,19 @@ abstract public class AbstractMarkDuplicateFindingAlgorithmTester extends SamFil
     final private File metricsFile;
     final DuplicationMetrics expectedMetrics;
 
-    public AbstractMarkDuplicateFindingAlgorithmTester() {
-        super(50, true);
+    public AbstractMarkDuplicateFindingAlgorithmTester(final ScoringStrategy duplicateScoringStrategy) {
+        super(50, true, SAMRecordSetBuilder.DEFAULT_CHROMOSOME_LENGTH, duplicateScoringStrategy);
 
         expectedMetrics = new DuplicationMetrics();
         expectedMetrics.READ_PAIR_OPTICAL_DUPLICATES = 0;
 
         metricsFile = new File(getOutputDir(), "metrics.txt");
         addArg("METRICS_FILE=" + metricsFile);
+    }
+
+
+    public AbstractMarkDuplicateFindingAlgorithmTester() {
+        this(SAMRecordSetBuilder.DEFAULTS_DUPLICATE_SCORING_STRATEGY);
     }
 
     /**

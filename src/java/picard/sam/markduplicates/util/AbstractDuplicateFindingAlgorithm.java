@@ -1,4 +1,4 @@
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 import picard.cmdline.*;
 import htsjdk.samtools.util.Log;

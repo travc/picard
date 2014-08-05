@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 import htsjdk.samtools.util.SortingCollection;
 import picard.PicardException;
@@ -29,7 +29,7 @@ import picard.PicardException;
 import java.io.*;
 
 /** Coded for ReadEnds that just outputs the primitive fields and reads them back. */
-class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMarkDuplicates> {
+public class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMarkDuplicates> {
     private DataInputStream in;
     private DataOutputStream out;
 
@@ -71,7 +71,7 @@ class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMar
             this.out.writeBytes(read.name);
             this.out.writeByte(read.orientationForOpticalDuplicates);
         }
-        catch (IOException ioe) {
+        catch (final IOException ioe) {
             throw new PicardException("Exception writing ReadEnds to file.", ioe);
         }
     }
@@ -81,7 +81,7 @@ class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMar
         try {
             // If the first read results in an EOF we've exhausted the stream
             try { read.score = this.in.readShort(); }
-            catch (EOFException eof) { return null; }
+            catch (final EOFException eof) { return null; }
 
             read.libraryId        = this.in.readShort();
             read.orientation      = this.in.readByte();
@@ -108,7 +108,7 @@ class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<ReadEndsMar
 
             return read;
         }
-        catch (IOException ioe) {
+        catch (final IOException ioe) {
             throw new PicardException("Exception writing ReadEnds to file.", ioe);
         }
     }

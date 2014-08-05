@@ -32,6 +32,8 @@ import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.ProgressLogger;
 import htsjdk.samtools.*;
+import picard.sam.markduplicates.util.AbstractMarkDuplicateFindingAlgorithm;
+
 
 import java.io.*;
 import java.util.*;
@@ -55,10 +57,6 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
     @Option(doc="The minimum distance to buffer records to account for clipping on the 5' end of the records." +
             "Set this number to -1 to use twice the first read's read length (or 100, whichever is smaller).", optional=true)
     public int MINIMUM_DISTANCE = -1;
-
-    @Option(doc="The scoring strategy to select which record should be not called a duplicate among comparable"
-            + " (potential duplicate) records.", optional = true)
-    public MarkDuplicatesWithMateCigarIterator.ScoringStrategy SCORING_STRATEGY = MarkDuplicatesWithMateCigarIterator.ScoringStrategy.TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME;
 
     @Option(doc="Skip record pairs with no mate cigar and include them in the output.")
     boolean SKIP_PAIRS_WITH_NO_MATE_CIGAR = true;
@@ -109,7 +107,6 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
                 this.opticalDuplicateFinder,
                 this.MINIMUM_DISTANCE,
                 this.REMOVE_DUPLICATES,
-                this.SCORING_STRATEGY,
                 this.SKIP_PAIRS_WITH_NO_MATE_CIGAR,
                 this.MAX_RECORDS_IN_RAM,
                 this.BLOCK_SIZE,
@@ -135,17 +132,16 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
         out.close();
 
         // For convenience to reference
-        final Map<String,Short> libraryIds = iterator.getLibraryIds();
         final Histogram<Short> opticalDupesByLibraryId = iterator.getOpticalDupesByLibraryId();
-        final Map<String,DuplicationMetrics> metricsByLibrary = iterator.getMetricsByLibrary();
 
         // Log info
+        log.info("Processed " + progress.getCount() + " records");
         log.info("Found " + iterator.getNumRecordsWithNoMateCigar() + " records with no mate cigar optional tag.");
         log.info("Marking " + iterator.getNumDuplicates() + " records as duplicates.");
         log.info("Found " + ((long) opticalDupesByLibraryId.getSumOfValues()) + " optical duplicate clusters.");
 
         // Write out the metrics
-        writeMetrics(metricsByLibrary, opticalDupesByLibraryId, libraryIds);
+        writeMetrics(iterator.getLibraryIdGenerator());
 
         return 0;
     }

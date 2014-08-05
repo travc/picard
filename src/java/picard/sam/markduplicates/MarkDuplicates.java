@@ -36,6 +36,13 @@ import htsjdk.samtools.*;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.SortingLongCollection;
+import picard.sam.markduplicates.util.AbstractMarkDuplicateFindingAlgorithm;
+import picard.sam.markduplicates.util.DiskReadEndsMarkDuplicatesMap;
+import picard.sam.markduplicates.util.LibraryIdGenerator;
+import picard.sam.markduplicates.util.ReadEnds;
+import picard.sam.markduplicates.util.ReadEndsMarkDuplicates;
+import picard.sam.markduplicates.util.ReadEndsMarkDuplicatesCodec;
+import picard.sam.markduplicates.util.ReadEndsMarkDuplicatesMap;
 
 import java.io.*;
 import java.util.*;
@@ -73,15 +80,12 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
     private SortingLongCollection duplicateIndexes;
     private int numDuplicateIndices = 0;
 
-    final private Map<String,Short> libraryIds = new HashMap<String,Short>();
-    private short nextLibraryId = 1;
-
     // Variables used for optical duplicate detection and tracking
-    private final Histogram<Short> opticalDupesByLibraryId = new Histogram<Short>();
 
-    private List<ReadEndsMarkDuplicates> trackOpticalDuplicatesF = new ArrayList<ReadEndsMarkDuplicates>(1000);
-    private List<ReadEndsMarkDuplicates> trackOpticalDuplicatesR = new ArrayList<ReadEndsMarkDuplicates>(1000);
+    private final List<ReadEndsMarkDuplicates> trackOpticalDuplicatesF = new ArrayList<ReadEndsMarkDuplicates>(1000);
+    private final List<ReadEndsMarkDuplicates> trackOpticalDuplicatesR = new ArrayList<ReadEndsMarkDuplicates>(1000);
 
+    private LibraryIdGenerator libraryIdGenerator = null; // this is initialized in buildSortedReadEndLists
 
     /** Stock main method. */
     public static void main(final String[] args) {
@@ -106,9 +110,8 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         generateDuplicateIndexes();
         reportMemoryStats("After generateDuplicateIndexes");
         log.info("Marking " + this.numDuplicateIndices + " records as duplicates.");
-        log.info("Found " + ((long) this.opticalDupesByLibraryId.getSumOfValues()) + " optical duplicate clusters.");
+        log.info("Found " + (this.libraryIdGenerator.getNumberOfOpticalDuplicateClusters()) + " optical duplicate clusters.");
 
-        final Map<String,DuplicationMetrics> metricsByLibrary = new HashMap<String,DuplicationMetrics>();
         final SamHeaderAndIterator headerAndIterator = openInputs();
         final SAMFileHeader header = headerAndIterator.header;
 
@@ -127,27 +130,17 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         long recordInFileIndex = 0;
         long nextDuplicateIndex = (this.duplicateIndexes.hasNext() ? this.duplicateIndexes.next(): -1);
 
-        for(final SAMReadGroupRecord readGroup : header.getReadGroups()) {
-            final String library = readGroup.getLibrary();
-            DuplicationMetrics metrics = metricsByLibrary.get(library);
-            if (metrics == null) {
-                metrics = new DuplicationMetrics();
-                metrics.LIBRARY = library;
-                metricsByLibrary.put(library, metrics);
-            }
-        }
-
         final ProgressLogger progress = new ProgressLogger(log, (int) 1e7, "Written");
         final CloseableIterator<SAMRecord> iterator = headerAndIterator.iterator;
         while (iterator.hasNext()) {
             final SAMRecord rec = iterator.next();
             if (!rec.isSecondaryOrSupplementary()) {
-                final String library = getLibraryName(header, rec);
-                DuplicationMetrics metrics = metricsByLibrary.get(library);
+                final String library = libraryIdGenerator.getLibraryName(header, rec);
+                DuplicationMetrics metrics = libraryIdGenerator.getMetricsByLibrary(library);
                 if (metrics == null) {
                     metrics = new DuplicationMetrics();
                     metrics.LIBRARY = library;
-                    metricsByLibrary.put(library, metrics);
+                    libraryIdGenerator.addMetricsByLibrary(library, metrics);
                 }
 
                 // First bring the simple metrics up to date
@@ -203,7 +196,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         reportMemoryStats("After output close");
 
         // Write out the metrics
-        writeMetrics(metricsByLibrary, opticalDupesByLibraryId, libraryIds);
+        writeMetrics(libraryIdGenerator);
 
         return 0;
     }
@@ -243,6 +236,10 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         long index = 0;
         final ProgressLogger progress = new ProgressLogger(log, (int) 1e6, "Read");
         final CloseableIterator<SAMRecord> iterator = headerAndIterator.iterator;
+
+        if (null == this.libraryIdGenerator) {
+            this.libraryIdGenerator = new LibraryIdGenerator(header);
+        }
 
         while (iterator.hasNext()) {
             final SAMRecord rec = iterator.next();
@@ -344,7 +341,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         }
 
         // Fill in the library ID
-        ends.libraryId = getLibraryId(header, rec);
+        ends.libraryId = libraryIdGenerator.getLibraryId(rec);
 
         // Fill in the location information for optical duplicates
         if (this.opticalDuplicateFinder.addLocationInformation(rec.getReadName(), ends)) {
@@ -362,19 +359,6 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         }
 
         return ends;
-    }
-
-    /** Get the library ID for the given SAM record. */
-    private short getLibraryId(final SAMFileHeader header, final SAMRecord rec) {
-        final String library = getLibraryName(header, rec);
-        Short libraryId = this.libraryIds.get(library);
-
-        if (libraryId == null) {
-            libraryId = this.nextLibraryId++;
-            this.libraryIds.put(library, libraryId);
-        }
-
-        return libraryId;
     }
 
     /** Calculates a score for the read which is the sum of scores over Q15. */
@@ -525,15 +509,15 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
             }
 
             // track the duplicates
-            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesF, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
-            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesR, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesF, this.opticalDuplicateFinder, this.libraryIdGenerator.getOpticalDupesByLibraryIdMap());
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesR, this.opticalDuplicateFinder, this.libraryIdGenerator.getOpticalDupesByLibraryIdMap());
 
             // clear the list
             trackOpticalDuplicatesF.clear();
             trackOpticalDuplicatesR.clear();
         }
         else { // No need to partition
-            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(list, this.opticalDuplicateFinder, this.opticalDupesByLibraryId);
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(list, this.opticalDuplicateFinder, this.libraryIdGenerator.getOpticalDupesByLibraryIdMap());
         }
     }
 

@@ -1,8 +1,8 @@
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 import org.testng.annotations.Test;
 import org.testng.Assert;
-import picard.sam.markduplicates.OpticalDuplicateFinder;
+import picard.sam.markduplicates.util.OpticalDuplicateFinder;
 
 /**
  * Tests for OpticalDuplicateFinder

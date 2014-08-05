@@ -7,11 +7,7 @@ import org.testng.annotations.Test;
  */
 public class MarkDuplicatesWithMateCigarTest extends AbstractMarkDuplicateFindingAlgorithmTest {
     protected AbstractMarkDuplicateFindingAlgorithmTester getTester() {
-        return new MarkDuplicatesWithMateCigarTester("SUM_OF_BASE_QUALITIES");
-    }
-
-    protected AbstractMarkDuplicateFindingAlgorithmTester getTester(final String scoringStrategy) {
-        return new MarkDuplicatesWithMateCigarTester(scoringStrategy);
+        return new MarkDuplicatesWithMateCigarTester();
     }
 
     // TODO: test program record chaining, including failures. Use MarkDuplicate's facility.
@@ -61,15 +57,15 @@ public class MarkDuplicatesWithMateCigarTest extends AbstractMarkDuplicateFindin
 
     @Test
      public void testScoringStrategyForReadNameComparison() {
-        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester("TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME");
-        tester.addMappedFragment(0, 1, true, DEFAULT_BASE_QUALITY);  // Ref lengths, MapQs equal. First read name in lex order called dup.
-        tester.addMappedFragment(0, 1, false, DEFAULT_BASE_QUALITY);
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.addMappedFragment(0, 1, false, DEFAULT_BASE_QUALITY);  // Ref lengths, MapQs equal. First read name in lex order called dup.
+        tester.addMappedFragment(0, 1, true, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
 
     @Test
     public void testScoringStrategyForMateReferenceLengthComparison() {
-        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester("TOTAL_MAPPED_REFERENCE_LENGTH_THEN_MAPQ_THEN_READ_NAME");
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
 
         // READY pair are both duplicates because (sum of reference length) for both reads is less than for READX
         // MarkDuplicates and SUM_OF_BASE_QUALITIES scoring strategy would mark READX pair a duplicate, as all reads have equal quals

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package picard.sam.markduplicates;
+package picard.sam.markduplicates.util;
 
 /**
  * Interface for storing and retrieving ReadEnds objects.  An implementation may be disk-based to

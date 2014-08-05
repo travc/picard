@@ -1,6 +1,7 @@
 package picard.sam;
 
 import htsjdk.samtools.BAMRecordCodec;
+import htsjdk.samtools.DuplicateScoringStrategy;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
@@ -50,6 +51,12 @@ public class RevertOriginalBaseQualitiesAndAddMateCigar extends CommandLineProgr
     @Option(shortName=StandardOptionDefinitions.USE_ORIGINAL_QUALITIES_SHORT_NAME, doc="True to restore original" +
             " qualities from the OQ field to the QUAL field if available.")
     public boolean RESTORE_ORIGINAL_QUALITIES = true;
+
+    @Option(shortName="DS", optional=true, doc="Adds the duplicate score tag (DS) if true, does not if false.")
+    public Boolean ADD_DUPLICATE_SCORE = true;
+
+    @Option(shortName="DSS", optional=true, doc="Adds the duplicate score tag (DS) if true, does not if false.")
+    public DuplicateScoringStrategy.ScoringStrategy DUPLICATE_SCORING_STRATEGY = DuplicateScoringStrategy.ScoringStrategy.TOTAL_MAPPED_REFERENCE_LENGTH;
 
     @Option(doc="The maximum number of records to examine to determine if we can exit early and not output, given that"
             + " there are a no original base qualities (if we are to restore) and mate cigars exist."
@@ -123,7 +130,6 @@ public class RevertOriginalBaseQualitiesAndAddMateCigar extends CommandLineProgr
         while (sorterIterator.hasNext()) {
             final List<SAMRecord> records = new LinkedList<SAMRecord>();
 
-
             /**
              * Get all records with the same name, and then identify the canonical first and second end to which we
              * want to add mate cigars.
@@ -154,11 +160,17 @@ public class RevertOriginalBaseQualitiesAndAddMateCigar extends CommandLineProgr
             if (null != firstRecord && null != secondRecord) {
                 // Update mate info
                 SamPairUtil.setMateInfo(firstRecord, secondRecord, outHeader, true);
+                if (ADD_DUPLICATE_SCORE) {
+                    DuplicateScoringStrategy.setDuplicateScore(firstRecord, secondRecord, DUPLICATE_SCORING_STRATEGY);
+                }
                 numMateCigarsAdded+=2;
             }
 
             // Add it to the output file
             for (final SAMRecord record : records) {
+                if (ADD_DUPLICATE_SCORE && !record.getReadPairedFlag()) { // fragment reads
+                    DuplicateScoringStrategy.setDuplicateScore(record, DUPLICATE_SCORING_STRATEGY);
+                }
                 sorterProgress.record(record);
                 out.addAlignment(record);
             }
