@@ -147,7 +147,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     }
 
     @Test
-    public void testOpticalDuplicateClusterSamePosition() {
+    public void testOpticalDuplicateClusterSamePositionNoOpticalDuplicates() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.setExpectedOpticalDuplicate(0);
         tester.addMatePair("RUNID:7:1203:2886:82292", 1, 485253, 485253, false, false, true, true, "42M59S", "59S42M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
@@ -156,7 +156,25 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     }
 
     @Test
-    public void testOpticalDuplicateClusterOneEndSamePositionNoCluster() {
+    public void testOpticalDuplicateClusterSamePositionNoOpticalDuplicatesWithinPixelDistance() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.setExpectedOpticalDuplicate(0);
+        tester.addMatePair("RUNID:7:1203:2886:16834", 1, 485253, 485253, false, false, true, true, "42M59S", "59S42M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair("RUNID:7:1203:2884:16835", 1, 485253, 485253, false, false, false, false, "59S42M", "42M59S", true, false, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
+
+    @Test
+    public void testOpticalDuplicateClusterSamePositionOneOpticalDuplicatesWithinPixelDistance() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.setExpectedOpticalDuplicate(1);
+        tester.addMatePair("RUNID:7:1203:2886:16834", 1, 485253, 485253, false, false, true, true, "45M", "45M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair("RUNID:7:1203:2884:16835", 1, 485253, 485253, false, false, false, false, "45M", "45M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
+
+    @Test
+    public void testOpticalDuplicateClusterOneEndSamePositionOneCluster() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         tester.setExpectedOpticalDuplicate(1);
         tester.addMatePair("RUNID:7:2205:17939:39728", 1, 485328, 485312, false, false, false, false, "55M46S", "30S71M", false, true, false, false, false, DEFAULT_BASE_QUALITY);
@@ -469,7 +487,9 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     @Test
     public void testPathologicalOrderingAtTheSamePosition() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+
         tester.setExpectedOpticalDuplicate(1);
+
         tester.addMatePair("RUNID:3:1:15013:113051", 0, 129384554, 129384554, false, false, false, false, "68M", "68M", false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.addMatePair("RUNID:3:1:15029:113060", 0, 129384554, 129384554, false, false, true, true, "68M", "68M", false, false, false, false, false, DEFAULT_BASE_QUALITY);
 
@@ -489,6 +509,15 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
         iterator.close();
 
         // Run the test
+        tester.runTest();
+    }
+
+    @Test
+    public void testDifferentChromosomesInOppositeOrder() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.setExpectedOpticalDuplicate(1);
+        tester.addMatePair("RUNID:6:101:17642:6835", 0, 1, 123989, 18281, false, false, true, true, "37S64M", "52M49S", false, false, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair("RUNID:6:101:17616:6888", 1, 0, 18281, 123989, false, false, false, false, "52M49S", "37S64M", false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
 }

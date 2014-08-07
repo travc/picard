@@ -1,5 +1,6 @@
 package picard.sam.markduplicates.util;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.Assert;
 import picard.sam.markduplicates.util.OpticalDuplicateFinder;
@@ -52,5 +53,23 @@ public class OpticalDuplicateFinderTest {
         for (int i = 1; i < 10; i++) {
             doTestGetRapidDefaultReadNameRegexSplit((i <= 5) ? i : 5, opticalDuplicateFinder);
         }
+    }
+
+    @Test(dataProvider = "testParseReadNameDataProvider")
+    public void testParseReadName(final String readName, final int tile, final int x, final int y) {
+        OpticalDuplicateFinder opticalDuplicateFinder = new OpticalDuplicateFinder();
+        OpticalDuplicateFinder.PhysicalLocation loc = new ReadEndsMarkDuplicates();
+        Assert.assertTrue(opticalDuplicateFinder.addLocationInformation(readName, loc));
+        Assert.assertEquals(loc.getTile(), tile);
+        Assert.assertEquals(loc.getX(), x);
+        Assert.assertEquals(loc.getY(), y);
+    }
+
+    @DataProvider(name = "testParseReadNameDataProvider")
+    public Object[][] testParseReadNameDataProvider() {
+        return new Object[][]{
+                {"RUNID:7:1203:2886:82292", 1203, 2886, 82292},
+                {"RUNID:7:1203:2884:16834", 1203, 2884, 16834}
+        };
     }
 }

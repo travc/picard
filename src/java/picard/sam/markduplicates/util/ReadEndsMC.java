@@ -21,6 +21,7 @@ public class ReadEndsMC extends ReadEnds {
 
     /** Builds a read ends object that represents a single read. */
     public ReadEndsMC(final SAMFileHeader header, final SamRecordIndex samRecordIndex, final OpticalDuplicateFinder opticalDuplicateFinder, final short libraryId) {
+
         this.readGroup = -1;
         this.tile = -1;
         this.x = this.y = -1;
@@ -29,37 +30,50 @@ public class ReadEndsMC extends ReadEnds {
 
         this.samRecordIndex = samRecordIndex;
 
-        this.read1Sequence = this.samRecordIndex.getRecord().getReferenceIndex();
-        this.read1Coordinate = this.samRecordIndex.getRecord().getReadNegativeStrandFlag() ? this.samRecordIndex.getRecord().getUnclippedEnd() : this.samRecordIndex.getRecord().getUnclippedStart();
-        if (this.samRecordIndex.getRecord().getReadUnmappedFlag()) {
+        final SAMRecord record = this.samRecordIndex.getRecord();
+
+        this.read1Sequence = record.getReferenceIndex();
+        this.read1Coordinate = record.getReadNegativeStrandFlag() ? record.getUnclippedEnd() : record.getUnclippedStart();
+        if (record.getReadUnmappedFlag()) {
             throw new PicardException("Found an unexpected unmapped read");
         }
 
-        if (this.samRecordIndex.getRecord().getReadPairedFlag() && !this.samRecordIndex.getRecord().getReadUnmappedFlag() && !this.samRecordIndex.getRecord().getMateUnmappedFlag()) {
-            this.read2Sequence = this.samRecordIndex.getRecord().getMateReferenceIndex();
-            this.read2Coordinate = this.samRecordIndex.getRecord().getMateNegativeStrandFlag() ? SAMUtils.getMateUnclippedEnd(this.samRecordIndex.getRecord()) : SAMUtils.getMateUnclippedStart(this.samRecordIndex.getRecord());
+        if (record.getReadPairedFlag() && !record.getReadUnmappedFlag() && !record.getMateUnmappedFlag()) {
+            this.read2Sequence = record.getMateReferenceIndex();
+            this.read2Coordinate = record.getMateNegativeStrandFlag() ? SAMUtils.getMateUnclippedEnd(record) : SAMUtils.getMateUnclippedStart(record);
 
             // set orientation
-            this.orientation = ReadEnds.getOrientationByte(this.samRecordIndex.getRecord().getReadNegativeStrandFlag(), this.samRecordIndex.getRecord().getMateNegativeStrandFlag());
+            this.orientation = ReadEnds.getOrientationByte(record.getReadNegativeStrandFlag(), record.getMateNegativeStrandFlag());
+
+            // Set orientationForOpticalDuplicates, which always goes by the first then the second end for the strands.  NB: must do this
+            // before updating the orientation later.
+            if (record.getReadPairedFlag()) {
+                if (record.getFirstOfPairFlag()) {
+                    this.orientationForOpticalDuplicates = ReadEnds.getOrientationByte(record.getReadNegativeStrandFlag(), record.getMateNegativeStrandFlag());
+                }
+                else {
+                    this.orientationForOpticalDuplicates = ReadEnds.getOrientationByte(record.getMateNegativeStrandFlag(), record.getReadNegativeStrandFlag());
+                }
+            }
         }
         else {
-            this.orientation = this.samRecordIndex.getRecord().getReadNegativeStrandFlag() ? ReadEndsMC.R : ReadEndsMC.F;
+            this.orientation = record.getReadNegativeStrandFlag() ? ReadEndsMC.R : ReadEndsMC.F;
         }
 
         // Fill in the library ID
         this.libraryId = libraryId;
 
         // Is this unmapped or its mate?
-        if (this.samRecordIndex.getRecord().getReadUnmappedFlag() || (this.samRecordIndex.getRecord().getReadPairedFlag() && this.samRecordIndex.getRecord().getMateUnmappedFlag())) {
+        if (record.getReadUnmappedFlag() || (record.getReadPairedFlag() && record.getMateUnmappedFlag())) {
             this.hasUnmapped = 1;
         }
 
         // Fill in the location information for optical duplicates
-        if (opticalDuplicateFinder.addLocationInformation(this.samRecordIndex.getRecord().getReadName(), this)) {
+        if (opticalDuplicateFinder.addLocationInformation(record.getReadName(), this)) {
             // calculate the RG number (nth in list)
             // NB: could this be faster if we used a hash?
             this.readGroup = 0;
-            final String rg = (String) this.samRecordIndex.getRecord().getAttribute("RG");
+            final String rg = (String) record.getAttribute("RG");
             final List<SAMReadGroupRecord> readGroups = header.getReadGroups();
             if (rg != null && readGroups != null) {
                 for (final SAMReadGroupRecord readGroup : readGroups) {

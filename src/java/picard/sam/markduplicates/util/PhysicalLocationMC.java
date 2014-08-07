@@ -20,14 +20,39 @@ public class PhysicalLocationMC implements OpticalDuplicateFinder.PhysicalLocati
         this.setLibraryId(rec.getLibraryId());
     }
 
-    public short getReadGroup() { return this.readGroup; }
-    public void  setReadGroup(final short rg) { this.readGroup = rg; }
-    public short getTile() { return this.tile; }
-    public void  setTile(final short tile) { this.tile = tile; }
-    public short getX() { return this.x; }
-    public void  setX(final short x) { this.x = x; }
-    public short getY() { return this.y; }
-    public void  setY(final short y) { this.y = y;}
-    public short getLibraryId() { return this.libraryId; }
-    public void  setLibraryId(final short libraryId) { this.libraryId = libraryId; }
+    @Override public short getReadGroup() { return this.readGroup; }
+    @Override public void  setReadGroup(final short rg) { this.readGroup = rg; }
+    @Override public short getTile() { return this.tile; }
+    @Override public void  setTile(final short tile) { this.tile = tile; }
+    @Override public short getX() { return this.x; }
+    @Override public void  setX(final short x) { this.x = x; }
+    @Override public short getY() { return this.y; }
+    @Override public void  setY(final short y) { this.y = y;}
+    @Override public short getLibraryId() { return this.libraryId; }
+    @Override public void  setLibraryId(final short libraryId) { this.libraryId = libraryId; }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other instanceof PhysicalLocationMC) {
+            int cmp;
+            PhysicalLocationMC loc = (PhysicalLocationMC)other;
+            cmp = getLibraryId() - loc.getLibraryId();
+            if (0 == cmp) cmp = getReadGroup() - loc.getReadGroup();
+            if (0 == cmp) cmp = getTile() - loc.getTile();
+            if (0 == cmp) cmp = getY() - loc.getY();
+            if (0 == cmp) cmp = getX() - loc.getX();
+            return 0 == cmp;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = getLibraryId();
+        result = 31 * result + getReadGroup();
+        result = 31 * result + getTile();
+        result = 31 * result + getY();
+        result = 31 * result + getX();
+        return result;
+    }
 }

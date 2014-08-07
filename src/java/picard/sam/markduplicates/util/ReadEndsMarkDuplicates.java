@@ -13,5 +13,4 @@ public class ReadEndsMarkDuplicates extends ReadEnds {
     public long read1IndexInFile = -1;
     public long read2IndexInFile = -1;
     public String name = "";
-    public byte orientationForOpticalDuplicates;
 }

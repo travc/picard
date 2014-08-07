@@ -75,7 +75,7 @@ public class MarkQueue {
     /** Physical locations used for optical duplicate tracking.  This is only stored for paired end reads where both ends are mapped,
      * and when we see the first mate.
      */
-    private final Map<ReadEndsMC, Set<PhysicalLocationMC>> locations = new HashMap<ReadEndsMC, Set<PhysicalLocationMC>>();
+    private final Map<ReadEndsMC, LocationSet> locations = new HashMap<ReadEndsMC, LocationSet>();
 
     /** If we have two items that are the same with respect to being in the "set", then we must choose one.  The "one" will
      * eventually be the end that is not marked as a duplicate in most cases (see poll() for the exceptions).
@@ -84,7 +84,6 @@ public class MarkQueue {
 
     /** temporary so we do not need to create many objects */
     private ReadEndsMC tmpReadEnds = null;
-
 
     public MarkQueue() {
     }
@@ -110,10 +109,10 @@ public class MarkQueue {
     }
 
     /** For tracking optical duplicates. */
-    public Set<PhysicalLocationMC> getLocations(final ReadEndsMC current) {
+    public Set<ReadEnds> getLocations(final ReadEndsMC current) {
         // NB: only needed for pairs!!!
         if (!shouldBeInLocations(current)) throw new NotImplementedException();
-        final Set<PhysicalLocationMC> locationSet = this.locations.remove(current);
+        final Set<ReadEnds> locationSet = this.locations.remove(current).getReadEnds();
         if (null == locationSet) throw new PicardException("Locations was empty: unexpected error");
         return locationSet;
     }
@@ -157,6 +156,7 @@ public class MarkQueue {
         // If we are a paired read end, we need to make sure we remove unpaired (if we are not also unpaired), as
         // well as fragments from the set, as they should all be duplicates.
         if (current.isPaired()) {
+
             // NB: only care about read1Sequence, read1Coordinate, and orientation in the set
             if (null == this.tmpReadEnds) { // initialize
                 this.tmpReadEnds = new ReadEndsMC(header, current.getsamRecordIndex(), opticalDuplicateFinder, current.libraryId);
@@ -184,11 +184,8 @@ public class MarkQueue {
                 if (1 != sortedSet.size()) throw new PicardException("SortedSet should have size one (has size " + sortedSet.size() + " )");
                 final ReadEndsMC duplicate = sortedSet.first();
 
-                // TODO - remove
-                //System.err.println("poll duplicate.getsamRecordIndex(): " + duplicate.getsamRecordIndex().getRecord().getSAMString());
-
-                // mark as duplicate and set that it has been through duplicate marking
-//                        duplicate.getRecord().setDuplicateReadFlag(true); HANDLED BY THE METHOD CALL BELOW
+                /** mark as duplicate and set that it has been through duplicate marking
+                 * duplicate.getRecord().setDuplicateReadFlag(true); HANDLED BY THE METHOD CALL BELOW*/
                 alignmentStartSortedBuffer.setDuplicateMarkingFlags(duplicate.getsamRecordIndex(), true);
 
                 // remove from the set
@@ -208,20 +205,20 @@ public class MarkQueue {
     /**
      * Add a record to the mark queue.
      */
+    private boolean debug = false; // TODO: remove me
     public void add(final ReadEndsMC other,
                     final DuplicateMarkingBuffer alignmentStartSortedBuffer,
                     final DuplicationMetrics metrics) {
-        Set<PhysicalLocationMC> locationSet = null;
+        LocationSet locationSet = null;
+        boolean addToLocationSet = true; // only false if we have mates mapped to the same position
         ReadEndsMC duplicate = null;
 
-        //System.err.print("TMQ add: " + other.getRecord().getSAMString());
-        //System.err.println("TMQ coordinate1: " + other.read1Coordinate);
-        //System.err.println("TMQ orientation: " + other.orientation);
+        if (debug) System.err.print("TMQ add: " + other.getRecord().getSAMString());
 
         // 1. check the queue to see if there exists a comparable record at the location, if so compare and keep the best.
         // 2. add physical location info if paired
         if (this.set.contains(other)) { // the "other" record already in the set
-            //System.err.println("TMQ add: other contains " + other.getRecord().getSAMString());
+            if (debug) System.err.print("TMQ add: other contains " + other.getRecord().getSAMString());
 
             // Get the subset of records that are comparable, which should be of size one
             final SortedSet<ReadEndsMC> sortedSet = this.set.subSet(other, true, other, true);
@@ -234,43 +231,45 @@ public class MarkQueue {
 
             // check for the read's pair
             if (currentName.equals(otherName)) { // "other" is paired-end mate of "current". We need to choose the best end to store in the main set.
-                //System.err.println("TMQ add: other contains : name equals " + other.getRecord().getSAMString());
+                if (debug) System.err.print("TMQ add: other contains : name equals " + other.getRecord().getSAMString());
                 final int comparison = this.comparator.compare(current, other);
                 // TODO: should this ever happen?  We should probably throw an exception in this case.
                 if (0 < comparison) { // other is the best end. Swap for current.
-                    //System.err.println("TMQ add: other contains : name equals : swap : " + other.getRecord().getSAMString());
+                    if (debug) System.err.print("TMQ add: other contains : name equals : swap : " + other.getRecord().getSAMString());
                     // Swap the set
                     this.set.remove(current);
                     this.set.add(other);
                     this.pairSet.add(current);
                     // Swap "current" and "other" in the locations
                     if (shouldBeInLocations(other)) {
-                        this.locations.put(other, locationSet = this.locations.remove(current));
+                        locationSet = this.locations.remove(current);
+                        locationSet.replace(current, other);
+                        this.locations.put(other, locationSet);
+                        addToLocationSet = false;
                     }
                 } else { // other is less desirable. Store it in the pair set.
-                    //System.err.println("TMQ add: other contains : name equals : no swap : " + other.getRecord().getSAMString());
+                    if (debug) System.err.print("TMQ add: other contains : name equals : no swap : " + other.getRecord().getSAMString());
                     this.pairSet.add(other);
                     if (shouldBeInLocations(current)) {
                         locationSet = this.locations.get(current);
+                        addToLocationSet = false;
                     }
                 }
-                //System.err.println("TMQ add: other contains : name equals : DONE : " + other.getRecord().getSAMString());
+                if (debug) System.err.print("TMQ add: other contains : name equals : DONE : " + other.getRecord().getSAMString());
             } else { // "other" is a unique record at the same location and must be compared against "current"
-                //System.err.println("TMQ add: other contains : name not equals " + other.getRecord().getSAMString());
+                if (debug) System.err.print("TMQ add: other contains : name not equals " + other.getRecord().getSAMString());
                 final int comparison = this.comparator.compare(current, other); // if we are to re-add, then other should make this > 0
 
                 if (0 < comparison) { // remove the current, and add the other in its place
-                    //System.err.println("READ NAME COMPARISON: " + current.getRecord().getReadName().compareTo(other.getRecord().getReadName()));
-                    //System.err.println("TMQ add: other contains : name not equals : 0<comparison " + other.getRecord().getSAMString());
+                    if (debug) System.err.print("TMQ add: other contains : name not equals : 0<comparison " + other.getRecord().getSAMString());
                     if (shouldBeInLocations(current)) { // was this in the location set?
                         // NB we could also just check if locationSet == null after remove?
                         locationSet = this.locations.remove(current);
                     }
                     else {
-                        locationSet = new HashSet<PhysicalLocationMC>();
+                        locationSet = new LocationSet();
                     }
                     this.locations.put(other, locationSet);
-
                     // remove current and add the other
                     this.set.remove(current);
                     this.set.add(other);
@@ -286,7 +285,6 @@ public class MarkQueue {
                     duplicate = current;
                 }
                 else { // keep the current record, and the "other" is now a duplicate
-                    //System.err.println("TMQ add: other contains : name not equals : comparison<=0 (" + (comparison == 0) + ") " + other.getRecord().getSAMString());
                     if (shouldBeInLocations(current)) { // Get the location set
                         locationSet = this.locations.get(current);
                     }
@@ -297,24 +295,34 @@ public class MarkQueue {
                 }
             }
         } else { // 'other' ReadEndMC is not in the main set, thus the first record at this location. Store it for now.
-            //System.err.println("TMQ add: other not contains " + other.getRecord().getSAMString());
+            if (debug) System.err.print("TMQ add: other not contains " + other.getRecord().getSAMString());
 
             if (shouldBeInLocations(other)) {
-                locationSet = new HashSet<PhysicalLocationMC>();
+                locationSet = new LocationSet();
                 this.locations.put(other, locationSet);
             }
             this.set.add(other);
         }
+        //System.err.println("\tSET SIZE=" + this.set.size());
 
         // add to the physical locations
         final SAMRecord record = other.getRecord();
+        if (debug && record.getReadPairedFlag()) System.err.print("TESTING FOR LOCATION SET (" + record.getFirstOfPairFlag() + ") : " + record.getSAMString());
         if (record.getReadPairedFlag()
                 && !record.getReadUnmappedFlag()
                 && !record.getMateUnmappedFlag()
-                && record.getFirstOfPairFlag()) { // only first of pairs!
+                && addToLocationSet) {
             if (null == locationSet) throw new PicardException("location set was null: " + record.getSAMString());
-            locationSet.add(new PhysicalLocationMC(other));
+            locationSet.add(other);
+            if (debug) System.err.print("TESTING FOR LOCATION SET OK (" + locationSet.size() + " " +
+            other.getTile() + ":" + other.getX() + ":" + other.getY() + ") : " + record.getSAMString());
+            if (debug) {
+                for (ReadEnds loc : locationSet.getReadEnds()) {
+                    System.err.println("LOCATION SET loc: + " + loc.getX() + ":" + loc.getY());
+                }
+            }
         }
+
         // NB: locationSet can be empty, presumably when the second end of a pair is added first
         //if (null != locationSet && locationSet.isEmpty()) throw new PicardException("location set was unexpectedly empty");
 
@@ -322,6 +330,43 @@ public class MarkQueue {
             alignmentStartSortedBuffer.setDuplicateMarkingFlags(duplicate.getsamRecordIndex(), true);
             // count the duplicate metrics
             updateMetrics(duplicate, metrics);
+        }
+    }
+
+    protected class LocationSet {
+        private final Set<ReadEnds> readEnds = new HashSet<ReadEnds>();
+        private final Set<PhysicalLocationMC> physicalLocations = new HashSet<PhysicalLocationMC>();
+
+        // PhysicalLocationMC
+        public LocationSet() {}
+
+        public void add(final ReadEndsMC end) {
+            final PhysicalLocationMC location = new PhysicalLocationMC(end);
+            if (!physicalLocations.contains(location)) {
+                readEnds.add(end);
+                physicalLocations.add(new PhysicalLocationMC(location));
+            }
+        }
+
+        public int size() { return physicalLocations.size(); }
+
+        public void remove(final ReadEndsMC end) {
+            final PhysicalLocationMC location = new PhysicalLocationMC(end);
+            if (physicalLocations.contains(location)) {
+                readEnds.remove(end);
+                physicalLocations.remove(location);
+            }
+        }
+
+        public Set<ReadEnds> getReadEnds() { return this.readEnds; }
+
+        public void replace(final ReadEndsMC current, final ReadEndsMC other) {
+            final PhysicalLocationMC location = new PhysicalLocationMC(current);
+            if (!physicalLocations.contains(location)) {
+                throw new PicardException("Trying to replace something not in the set");
+            }
+            this.remove(current);
+            this.add(other);
         }
     }
 }

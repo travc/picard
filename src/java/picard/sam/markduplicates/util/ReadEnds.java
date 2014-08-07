@@ -40,22 +40,26 @@ abstract public class ReadEnds implements OpticalDuplicateFinder.PhysicalLocatio
     public short tile = -1;
     public short x = -1, y = -1;
 
+    /** For optical duplicate detection the orientation matters regard to 1st or 2nd end of a mate */
+    public byte orientationForOpticalDuplicates = -1;
+
+
     public boolean isPaired() { return this.read2Sequence != -1; }
 
-    public short getReadGroup() { return this.readGroup; }
-    public void setReadGroup(final short readGroup) { this.readGroup = readGroup; }
+    @Override public short getReadGroup() { return this.readGroup; }
+    @Override public void setReadGroup(final short readGroup) { this.readGroup = readGroup; }
 
-    public short getTile() { return this.tile; }
-    public void setTile(final short tile) { this.tile = tile; }
+    @Override public short getTile() { return this.tile; }
+    @Override public void setTile(final short tile) { this.tile = tile; }
 
-    public short getX() { return this.x; }
-    public void setX(final short x) { this.x = x; }
+    @Override public short getX() { return this.x; }
+    @Override public void setX(final short x) { this.x = x; }
 
-    public short getY() { return this.y; }
-    public void setY(final short y) { this.y = y; }
+    @Override public short getY() { return this.y; }
+    @Override public void setY(final short y) { this.y = y; }
 
-    public short getLibraryId() { return this.libraryId; }
-    public void setLibraryId(final short libraryId) { this.libraryId = libraryId; }
+    @Override public short getLibraryId() { return this.libraryId; }
+    @Override public void setLibraryId(final short libraryId) { this.libraryId = libraryId; }
 
     /**
      * Returns a single byte that encodes the orientation of the two reads in a pair.

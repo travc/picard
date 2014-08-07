@@ -224,7 +224,54 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
      * Looks through the set of reads and identifies how many of the duplicates are
      * in fact optical duplicates, and stores the data in the instance level histogram.
      */
-    public static void trackOpticalDuplicates(final List<? extends OpticalDuplicateFinder.PhysicalLocation> list,
+    public static void trackOpticalDuplicates(List<? extends ReadEnds> ends,
+                                              final OpticalDuplicateFinder opticalDuplicateFinder,
+                                              final LibraryIdGenerator libraryIdGenerator) {
+        boolean hasFR = false, hasRF = false;
+
+        // Check to see if we have a mixture of FR/RF
+        for (final ReadEnds end : ends) {
+            if (ReadEnds.FR == end.orientationForOpticalDuplicates) {
+                hasFR = true;
+            }
+            else if(ReadEnds.RF == end.orientationForOpticalDuplicates) {
+                hasRF = true;
+            }
+        }
+
+        // Check if we need to partition since the orientations could have changed
+        if (hasFR && hasRF) { // need to track them independently
+            // Variables used for optical duplicate detection and tracking
+            final List<ReadEnds> trackOpticalDuplicatesF = new ArrayList<ReadEnds>();
+            final List<ReadEnds> trackOpticalDuplicatesR = new ArrayList<ReadEnds>();
+
+            // Split into two lists: first of pairs and second of pairs, since they must have orientation and same starting end
+            for (final ReadEnds end : ends) {
+                if (ReadEnds.FR == end.orientationForOpticalDuplicates) {
+                    trackOpticalDuplicatesF.add(end);
+                }
+                else if (ReadEnds.RF == end.orientationForOpticalDuplicates) {
+                    trackOpticalDuplicatesR.add(end);
+                }
+                else {
+                    throw new PicardException("Found an unexpected orientation: " + end.orientation);
+                }
+            }
+
+            // track the duplicates
+            trackOpticalDuplicates(trackOpticalDuplicatesF, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap());
+            trackOpticalDuplicates(trackOpticalDuplicatesR, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap());
+        }
+        else { // No need to partition
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(ends, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap());
+        }
+    }
+
+    /**
+     * Looks through the set of reads and identifies how many of the duplicates are
+     * in fact optical duplicates, and stores the data in the instance level histogram.
+     */
+    private static void trackOpticalDuplicates(final List<? extends OpticalDuplicateFinder.PhysicalLocation> list,
                                                  final OpticalDuplicateFinder opticalDuplicateFinder,
                                                  final Histogram<Short> opticalDupesByLibraryId) {
 
@@ -236,6 +283,4 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
             opticalDupesByLibraryId.increment(list.get(0).getLibraryId(), opticalDuplicates);
         }
     }
-
-
 }

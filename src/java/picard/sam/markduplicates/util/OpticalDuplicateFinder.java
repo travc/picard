@@ -59,16 +59,16 @@ public class OpticalDuplicateFinder {
      * non-zero positive integers, x and y coordinates may be negative.
      */
     public static interface PhysicalLocation {
-        short getReadGroup();
-        void  setReadGroup(short rg);
-        short getTile();
-        void  setTile(short tile);
-        short getX();
-        void  setX(short x);
-        short getY();
-        void  setY(short y);
-        short getLibraryId();
-        void  setLibraryId(short libraryId);
+        public short getReadGroup();
+        public void  setReadGroup(short rg);
+        public short getTile();
+        public void  setTile(short tile);
+        public short getX();
+        public void  setX(short x);
+        public short getY();
+        public void  setY(short y);
+        public short getLibraryId();
+        public void  setLibraryId(short libraryId);
     }
 
     /**
@@ -94,6 +94,7 @@ public class OpticalDuplicateFinder {
                 }
                 return false;
             }
+
             loc.setTile((short) tmpLocationFields[2]);
             loc.setX((short) tmpLocationFields[3]);
             loc.setY((short) tmpLocationFields[4]);

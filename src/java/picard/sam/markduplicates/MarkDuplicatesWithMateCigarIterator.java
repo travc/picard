@@ -51,9 +51,6 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      * - object pool for ReadEndsMC
      */
 
-    private int unmappedWithMappedPair = 0;
-    private int mappedPairComparableForDuplicate = 0;
-
     private SAMFileHeader header = null;
     private PeekableIterator<SAMRecord> backingIterator = null;
     private int backingIteratorRecordIndex = 0;
@@ -228,6 +225,11 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                     chunkAndMarkTheDuplicates();
                 }
             }
+            /*
+            System.err.println("toMarkQueue.isEmpty()=" + toMarkQueue.isEmpty());
+            System.err.println("this.alignmentStartSortedBuffer.isEmpty()=" + this.alignmentStartSortedBuffer.isEmpty());
+            System.err.println("this.alignmentStartSortedBuffer.canEmit()=" + this.alignmentStartSortedBuffer.canEmit());
+            */
 
             // update our coordinate to past the end of the reference
             this.referenceIndex = this.header.getSequenceDictionary().getSequences().size();
@@ -380,9 +382,6 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             // We do not consider these. Indicate the present samRecordIndex is available for return
             if (record.isSecondaryOrSupplementary() || record.getReadUnmappedFlag()) {
                 this.alignmentStartSortedBuffer.setDuplicateMarkingFlags(samRecordIndex, false);
-
-                if (record.getReadPairedFlag() && !record.getMateUnmappedFlag())
-                    unmappedWithMappedPair++;
             }
             else {
                 // update metrics
@@ -436,6 +435,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     }
 
     /** Useful for statistics after the iterator has completed */
+    // TODO: enforce that these cannot be accessed until the iterator has been closed
     public int getNumRecordsWithNoMateCigar() { return this.numRecordsWithNoMateCigar; }
     public int getNumDuplicates() { return this.toMarkQueue.getNumDuplicates(); }
     public LibraryIdGenerator getLibraryIdGenerator() { return this.libraryIdGenerator; }
@@ -501,19 +501,19 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         final ReadEndsMC next = this.toMarkQueue.poll(alignmentStartSortedBuffer, header, opticalDuplicateFinder, libraryIdGenerator); // get the first one!
 
         // track optical duplicates using only those reads that are the first end...
-        if (this.toMarkQueue.shouldBeInLocations(next)) {
-            final Set<PhysicalLocationMC> locations = this.toMarkQueue.getLocations(next);
+        if (this.toMarkQueue.shouldBeInLocations(next) && next.getRecord().getFirstOfPairFlag()) {
+            final Set<ReadEnds> locations = this.toMarkQueue.getLocations(next);
 
             if (!locations.isEmpty()) {
-                    AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(new ArrayList<PhysicalLocationMC>(locations),
-                            this.opticalDuplicateFinder, this.libraryIdGenerator.getOpticalDupesByLibraryIdMap());
+                AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(new ArrayList<ReadEnds>(locations),
+                        this.opticalDuplicateFinder, this.libraryIdGenerator);
             }
         }
     }
 
     /** Get the duplication metrics for the library associated with end. */
     private DuplicationMetrics getMetrics(final SAMRecord record) {
-        final String library = libraryIdGenerator.getLibraryName(this.header, record);
+        final String library = this.libraryIdGenerator.getLibraryName(this.header, record);
         DuplicationMetrics metrics = this.libraryIdGenerator.getMetricsByLibrary(library);
         if (metrics == null) {
             metrics = new DuplicationMetrics();

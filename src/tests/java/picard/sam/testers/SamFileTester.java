@@ -219,7 +219,8 @@ public abstract class SamFileTester {
     }
 
     public void addMatePair(final String readName,
-                            final int referenceSequenceIndex,
+                            final int referenceSequenceIndex1,
+                            final int referenceSequenceIndex2,
                             final int alignmentStart1,
                             final int alignmentStart2,
                             final boolean record1Unmapped,
@@ -234,7 +235,7 @@ public abstract class SamFileTester {
                             final boolean record1NonPrimary,
                             final boolean record2NonPrimary,
                             final int defaultQuality) {
-        final List<SAMRecord> samRecordList = samRecordSetBuilder.addPair(readName, referenceSequenceIndex, alignmentStart1, alignmentStart2,
+        final List<SAMRecord> samRecordList = samRecordSetBuilder.addPair(readName, referenceSequenceIndex1, referenceSequenceIndex2, alignmentStart1, alignmentStart2,
                 record1Unmapped, record2Unmapped, cigar1, cigar2, strand1, strand2, record1NonPrimary, record2NonPrimary, defaultQuality);
 
         final SAMRecord record1 = samRecordList.get(0);
@@ -251,6 +252,26 @@ public abstract class SamFileTester {
 
         this.duplicateFlags.put(samRecordToDuplicatesFlagsKey(record1), isDuplicate1);
         this.duplicateFlags.put(samRecordToDuplicatesFlagsKey(record2), isDuplicate2);
+    }
+
+    public void addMatePair(final String readName,
+                            final int referenceSequenceIndex,
+                            final int alignmentStart1,
+                            final int alignmentStart2,
+                            final boolean record1Unmapped,
+                            final boolean record2Unmapped,
+                            final boolean isDuplicate1,
+                            final boolean isDuplicate2,
+                            final String cigar1,
+                            final String cigar2,
+                            final boolean strand1,
+                            final boolean strand2,
+                            final boolean firstOnly,
+                            final boolean record1NonPrimary,
+                            final boolean record2NonPrimary,
+                            final int defaultQuality) {
+        addMatePair(readName, referenceSequenceIndex,referenceSequenceIndex, alignmentStart1, alignmentStart2, record1Unmapped, record2Unmapped,
+                isDuplicate1, isDuplicate2, cigar1, cigar2, strand1, strand2, firstOnly, record1NonPrimary, record2NonPrimary, defaultQuality);
     }
 
     protected abstract void test();

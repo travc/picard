@@ -80,10 +80,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
     private SortingLongCollection duplicateIndexes;
     private int numDuplicateIndices = 0;
 
-    // Variables used for optical duplicate detection and tracking
 
-    private final List<ReadEndsMarkDuplicates> trackOpticalDuplicatesF = new ArrayList<ReadEndsMarkDuplicates>(1000);
-    private final List<ReadEndsMarkDuplicates> trackOpticalDuplicatesR = new ArrayList<ReadEndsMarkDuplicates>(1000);
 
     private LibraryIdGenerator libraryIdGenerator = null; // this is initialized in buildSortedReadEndLists
 
@@ -470,19 +467,12 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
     private void markDuplicatePairs(final List<ReadEndsMarkDuplicates> list) {
         short maxScore = 0;
         ReadEndsMarkDuplicates best = null;
-        boolean hasFR = false, hasRF = false;
 
         /** All read ends should have orientation FF, FR, RF, or RR **/
         for (final ReadEndsMarkDuplicates end : list) {
             if (end.score > maxScore || best == null) {
                 maxScore = end.score;
                 best = end;
-            }
-            if (ReadEnds.FR == end.orientationForOpticalDuplicates) {
-                hasFR = true;
-            }
-            else if(ReadEnds.RF == end.orientationForOpticalDuplicates) {
-                hasRF = true;
             }
         }
 
@@ -493,32 +483,8 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
             }
         }
 
-        // Check if we need to partition since the orientations could have changed
-        if (hasFR && hasRF) { // need to track them independently
-            // Split into two lists: first of pairs and second of pairs, since they must have orientation and same starting end
-            for (final ReadEndsMarkDuplicates end : list) {
-                if (ReadEnds.FR == end.orientationForOpticalDuplicates) {
-                    trackOpticalDuplicatesF.add(end);
-                }
-                else if (ReadEnds.RF == end.orientationForOpticalDuplicates) {
-                    trackOpticalDuplicatesR.add(end);
-                }
-                else {
-                    throw new PicardException("Found an unexpected orientation: " + end.orientation);
-                }
-            }
-
-            // track the duplicates
-            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesF, this.opticalDuplicateFinder, this.libraryIdGenerator.getOpticalDupesByLibraryIdMap());
-            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(trackOpticalDuplicatesR, this.opticalDuplicateFinder, this.libraryIdGenerator.getOpticalDupesByLibraryIdMap());
-
-            // clear the list
-            trackOpticalDuplicatesF.clear();
-            trackOpticalDuplicatesR.clear();
-        }
-        else { // No need to partition
-            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(list, this.opticalDuplicateFinder, this.libraryIdGenerator.getOpticalDupesByLibraryIdMap());
-        }
+        // track optical duplicates
+        AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(list, opticalDuplicateFinder, libraryIdGenerator);
     }
 
     /**
