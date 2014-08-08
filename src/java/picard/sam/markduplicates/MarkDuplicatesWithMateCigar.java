@@ -26,7 +26,6 @@ package picard.sam.markduplicates;
 
 import picard.cmdline.Option;
 import htsjdk.samtools.util.Histogram;
-import picard.sam.DuplicationMetrics;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.IOUtil;
@@ -64,6 +63,7 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
     @Option(doc="The block size for use in the coordinate-sorted record buffer. Default = 100,000", optional = true)
     public int BLOCK_SIZE = 100000;
 
+    /** Warnings that will only be emitted once */
     private boolean warnedNullProgramRecords = false;
     private boolean warnedMissingProgramRecords = false;
 
@@ -79,8 +79,6 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
         for (final File f : INPUT) IOUtil.assertFileIsReadable(f);
         IOUtil.assertFileIsWritable(OUTPUT);
         IOUtil.assertFileIsWritable(METRICS_FILE);
-
-        // TODO: test for supported duplicate scoring strategies
 
         // Open the inputs
         final SamHeaderAndIterator headerAndIterator = openInputs();
