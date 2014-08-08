@@ -8,6 +8,7 @@ import htsjdk.samtools.SAMUtils;
 import picard.PicardException;
 import picard.sam.DuplicationMetrics;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -43,6 +44,12 @@ public class MarkQueue {
     /** Comparator for ReadEndsMC that orders by read1 position then pair orientation then read2 position. */
     // Could be a Singleton, but no static variables in inner classes.
     class ReadEndsMCComparator implements Comparator<ReadEndsMC> {
+        private final ScoringStrategy duplicateScoringStrategy;
+
+        public ReadEndsMCComparator(final ScoringStrategy duplicateScoringStrategy) {
+            this.duplicateScoringStrategy = duplicateScoringStrategy;
+        }
+
         public int compare(final ReadEndsMC lhs, final ReadEndsMC rhs) {
             int retval = lhs.libraryId - rhs.libraryId;
             if (retval == 0) retval = lhs.read1Sequence - rhs.read1Sequence;
@@ -52,7 +59,8 @@ public class MarkQueue {
             if (retval == 0) retval = lhs.hasUnmapped - rhs.hasUnmapped;
             if (retval == 0) retval = lhs.read2Sequence - rhs.read2Sequence;
             if (retval == 0) retval = lhs.read2Coordinate - rhs.read2Coordinate;
-            if (retval == 0) retval = DuplicateScoringStrategy.compare(lhs.getRecord(), rhs.getRecord());
+            // TODO: cache the scores?
+            if (retval == 0) retval = DuplicateScoringStrategy.compare(lhs.getRecord(), rhs.getRecord(), this.duplicateScoringStrategy, true);
             if (retval == 0) retval = lhs.getRecordReadName().compareTo(rhs.getRecordReadName());
 
             return retval;
@@ -80,12 +88,13 @@ public class MarkQueue {
     /** If we have two items that are the same with respect to being in the "set", then we must choose one.  The "one" will
      * eventually be the end that is not marked as a duplicate in most cases (see poll() for the exceptions).
      */
-    private final Comparator<ReadEndsMC> comparator = new ReadEndsMCComparator();
+    private final Comparator<ReadEndsMC> comparator;
 
     /** temporary so we do not need to create many objects */
     private ReadEndsMC tmpReadEnds = null;
 
-    public MarkQueue() {
+    public MarkQueue(final ScoringStrategy duplicateScoringStrategy) {
+        comparator = new ReadEndsMCComparator(duplicateScoringStrategy);
     }
 
     public int getNumDuplicates() { return this.numDuplicates; }

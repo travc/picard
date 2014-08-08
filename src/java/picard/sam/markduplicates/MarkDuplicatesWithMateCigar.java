@@ -80,6 +80,8 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
         IOUtil.assertFileIsWritable(OUTPUT);
         IOUtil.assertFileIsWritable(METRICS_FILE);
 
+        // TODO: test for supported duplicate scoring strategies
+
         // Open the inputs
         final SamHeaderAndIterator headerAndIterator = openInputs();
         final SAMFileHeader header = headerAndIterator.header;
@@ -105,6 +107,7 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
         final MarkDuplicatesWithMateCigarIterator iterator = new MarkDuplicatesWithMateCigarIterator(headerAndIterator.header,
                 headerAndIterator.iterator,
                 this.opticalDuplicateFinder,
+                this.DUPLICATE_SCORING_STRATEGY,
                 this.MINIMUM_DISTANCE,
                 this.REMOVE_DUPLICATES,
                 this.SKIP_PAIRS_WITH_NO_MATE_CIGAR,

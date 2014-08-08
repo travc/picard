@@ -43,6 +43,7 @@ import picard.sam.markduplicates.util.ReadEnds;
 import picard.sam.markduplicates.util.ReadEndsMarkDuplicates;
 import picard.sam.markduplicates.util.ReadEndsMarkDuplicatesCodec;
 import picard.sam.markduplicates.util.ReadEndsMarkDuplicatesMap;
+import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 
 import java.io.*;
 import java.util.*;
@@ -80,9 +81,12 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
     private SortingLongCollection duplicateIndexes;
     private int numDuplicateIndices = 0;
 
-
-
     private LibraryIdGenerator libraryIdGenerator = null; // this is initialized in buildSortedReadEndLists
+
+    public MarkDuplicates() {
+        DUPLICATE_SCORING_STRATEGY = ScoringStrategy.SUM_OF_BASE_QUALITIES;
+    }
+
 
     /** Stock main method. */
     public static void main(final String[] args) {
@@ -300,8 +304,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
                                     pairedEnds.orientation == ReadEnds.R);
                         }
 
-
-                        pairedEnds.score += getScore(rec);
+                        pairedEnds.score += DuplicateScoringStrategy.computeDuplicateScore(rec, this.DUPLICATE_SCORING_STRATEGY);
                         this.pairSort.add(pairedEnds);
                     }
                 }
@@ -329,7 +332,7 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         ends.read1Coordinate  = rec.getReadNegativeStrandFlag() ? rec.getUnclippedEnd() : rec.getUnclippedStart();
         ends.orientation = rec.getReadNegativeStrandFlag() ? ReadEnds.R : ReadEnds.F;
         ends.read1IndexInFile = index;
-        ends.score = getScore(rec);
+        ends.score = DuplicateScoringStrategy.computeDuplicateScore(rec, this.DUPLICATE_SCORING_STRATEGY);
         ends.name = rec.getReadName();
 
         // Doing this lets the ends object know that it's part of a pair
@@ -356,16 +359,6 @@ public class MarkDuplicates extends AbstractMarkDuplicateFindingAlgorithm {
         }
 
         return ends;
-    }
-
-    /** Calculates a score for the read which is the sum of scores over Q15. */
-    private short getScore(final SAMRecord rec) {
-        short score = 0;
-        for (final byte b : rec.getBaseQualities()) {
-            if (b >= 15) score += b;
-        }
-
-        return score;
     }
 
     /**

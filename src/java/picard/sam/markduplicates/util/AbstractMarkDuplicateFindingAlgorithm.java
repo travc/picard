@@ -12,6 +12,7 @@ import htsjdk.samtools.util.Histogram;
 import htsjdk.samtools.*;
 import htsjdk.samtools.util.CloseableIterator;
 import picard.sam.DuplicationMetrics;
+import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 
 import java.io.File;
 import java.util.*;
@@ -74,6 +75,9 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
     @Option(shortName=StandardOptionDefinitions.ASSUME_SORTED_SHORT_NAME,
             doc="If true, assume that the input file is coordinate sorted even if the header says otherwise.")
     public boolean ASSUME_SORTED = false;
+
+    @Option(shortName="DS", doc="The scoring strategy for choosing the non-duplicate among candidates.")
+    public ScoringStrategy DUPLICATE_SCORING_STRATEGY = ScoringStrategy.TOTAL_MAPPED_REFERENCE_LENGTH;
 
     // Gather all PG IDs seen in merged input files in first pass.  These are gathered for two reasons:
     // - to know how many different PG records to create to represent this program invocation.

@@ -30,6 +30,7 @@ import picard.sam.DuplicationMetrics;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.*;
+import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 import htsjdk.samtools.util.CloseableIterator;
 import picard.sam.markduplicates.util.DuplicateMarkingBuffer;
 import picard.sam.markduplicates.util.*;
@@ -87,6 +88,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
     public MarkDuplicatesWithMateCigarIterator(final SAMFileHeader header,
                                                final CloseableIterator<SAMRecord> iterator,
                                                final OpticalDuplicateFinder opticalDuplicateFinder,
+                                               final ScoringStrategy duplicateScoringStrategy,
                                                final int toMarkQueueMinimumDistance,
                                                final boolean removeDuplicates,
                                                final boolean skipPairsWithNoMateCigar,
@@ -105,7 +107,15 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         this.skipPairsWithNoMateCigar = skipPairsWithNoMateCigar;
         this.opticalDuplicateFinder = opticalDuplicateFinder;
 
-        toMarkQueue = new MarkQueue();
+        // Check for supported scoring strategies
+        switch (duplicateScoringStrategy) {
+            case SUM_OF_BASE_QUALITIES:
+                throw new PicardException("SUM_OF_BASE_QUALITIES not supported as this may cause inconsistencies across ends in a pair.  Please use a different scoring strategy.");
+            default:
+                break;
+        }
+
+        toMarkQueue = new MarkQueue(duplicateScoringStrategy);
         libraryIdGenerator = new LibraryIdGenerator(header);
 
         // set up metrics

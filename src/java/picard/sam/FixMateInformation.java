@@ -86,12 +86,6 @@ public class FixMateInformation extends CommandLineProgram {
     @Option(shortName="MC", optional=true, doc="Adds the mate CIGAR tag (MC) if true, does not if false.")
     public Boolean ADD_MATE_CIGAR = true;
 
-    @Option(shortName="DS", optional=true, doc="Adds the duplicate score tag (DS) if true, does not if false.")
-    public Boolean ADD_DUPLICATE_SCORE = true;
-
-    @Option(shortName="DSS", optional=true, doc="Adds the duplicate score tag (DS) if true, does not if false.")
-    public ScoringStrategy DUPLICATE_SCORING_STRATEGY = ScoringStrategy.TOTAL_MAPPED_REFERENCE_LENGTH;
-
     private static final Log log = Log.getInstance(FixMateInformation.class);
 
     protected SAMFileWriter out;
@@ -222,17 +216,11 @@ public class FixMateInformation extends CommandLineProgram {
             if (rec2 != null && rec1.getReadName().equals(rec2.getReadName())) {
                 iterator.next(); // consume the peeked record
                 SamPairUtil.setMateInfo(rec1, rec2, header, ADD_MATE_CIGAR);
-                if (ADD_DUPLICATE_SCORE) { // pairs
-                    DuplicateScoringStrategy.setDuplicateScore(rec1, rec2, DUPLICATE_SCORING_STRATEGY);
-                }
                 writeAlignment(rec1);
                 writeAlignment(rec2);
                 progress.record(rec1, rec2);
             }
             else {
-                if (ADD_DUPLICATE_SCORE) { // fragments
-                    DuplicateScoringStrategy.setDuplicateScore(rec1, DUPLICATE_SCORING_STRATEGY);
-                }
                 writeAlignment(rec1);
                 progress.record(rec1);
             }

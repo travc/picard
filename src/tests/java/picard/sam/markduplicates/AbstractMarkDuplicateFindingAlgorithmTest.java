@@ -233,8 +233,8 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     @Test
     public void testTwoMappedPairsWithSoftClippingBoth() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMappedPair(1, 10046, 10002, false, false, "3S73M", "6S42M28S", true, false, false, DEFAULT_BASE_QUALITY);
-        tester.addMappedPair(1, 10051, 10002, true, true, "8S68M", "6S48M22S", true, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMappedPair(1, 10046, 10002, true, true, "3S73M", "6S42M28S", true, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMappedPair(1, 10051, 10002, false, false, "8S68M", "6S48M22S", true, false, false, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
 
@@ -320,8 +320,8 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     @Test
     public void testTwoMappedPairsWithOppositeOrientations() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
-        tester.addMappedPair(1, 10182, 10038, false, false, "32S44M", "66M10S", true, false, false, DEFAULT_BASE_QUALITY); // -/+
-        tester.addMappedPair(1, 10038, 10182, true, true, "70M6S", "32S44M", false, true, false, DEFAULT_BASE_QUALITY); // +/-, both are duplicates
+        tester.addMappedPair(1, 10182, 10038, true, true, "32S44M", "66M10S", true, false, false, DEFAULT_BASE_QUALITY); // -/+
+        tester.addMappedPair(1, 10038, 10182, false, false, "70M6S", "32S44M", false, true, false, DEFAULT_BASE_QUALITY); // +/-, both are duplicates
         tester.runTest();
     }
 
@@ -337,12 +337,12 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
     public void testThreeMappedPairsWithMatchingSecondMate() {
         final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
         // Read0 and Read2 are duplicates
-        // 10181+35=10216, 10058
+        // 10181+41=10220, 10058
         tester.addMappedPair(1, 10181, 10058, false, false, "41S35M", "47M29S", true, false, false, DEFAULT_BASE_QUALITY); // -/+
-        // 10181+37=10218, 10058
-        tester.addMappedPair(1, 10181, 10058, false, false, "37S39M", "44M32S", true, false, false, DEFAULT_BASE_QUALITY); // -/+
+        // 10181+37=10216, 10058
+        tester.addMappedPair(1, 10181, 10058, true, true, "37S39M", "44M32S", true, false, false, DEFAULT_BASE_QUALITY); // -/+
         // 10180+36=10216, 10058
-        tester.addMappedPair(1, 10180, 10058, true, true, "36S40M", "50M26S", true, false, false, DEFAULT_BASE_QUALITY); // -/+, both are duplicates
+        tester.addMappedPair(1, 10180, 10058, false, false, "36S40M", "50M26S", true, false, false, DEFAULT_BASE_QUALITY); // -/+, both are duplicates
         tester.runTest();
     }
 

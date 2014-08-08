@@ -33,6 +33,7 @@ abstract public class AbstractMarkDuplicateFindingAlgorithmTester extends SamFil
 
         metricsFile = new File(getOutputDir(), "metrics.txt");
         addArg("METRICS_FILE=" + metricsFile);
+        addArg("DUPLICATE_SCORING_STRATEGY=" + duplicateScoringStrategy.name());
     }
 
 
