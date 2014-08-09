@@ -233,13 +233,20 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         }
     }
 
+    public static void trackOpticalDuplicates(List<? extends ReadEnds> ends,
+                                              final OpticalDuplicateFinder opticalDuplicateFinder,
+                                              final LibraryIdGenerator libraryIdGenerator) {
+        trackOpticalDuplicates(ends, opticalDuplicateFinder, libraryIdGenerator, false);
+    }
+
     /**
      * Looks through the set of reads and identifies how many of the duplicates are
      * in fact optical duplicates, and stores the data in the instance level histogram.
      */
     public static void trackOpticalDuplicates(List<? extends ReadEnds> ends,
                                               final OpticalDuplicateFinder opticalDuplicateFinder,
-                                              final LibraryIdGenerator libraryIdGenerator) {
+                                              final LibraryIdGenerator libraryIdGenerator,
+                                              final boolean annotateOpticalDuplicates) {
         boolean hasFR = false, hasRF = false;
 
         // Check to see if we have a mixture of FR/RF
@@ -272,11 +279,27 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
             }
 
             // track the duplicates
-            trackOpticalDuplicates(trackOpticalDuplicatesF, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap());
-            trackOpticalDuplicates(trackOpticalDuplicatesR, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap());
+            trackOpticalDuplicates(trackOpticalDuplicatesF, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap(), annotateOpticalDuplicates);
+            trackOpticalDuplicates(trackOpticalDuplicatesR, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap(), annotateOpticalDuplicates);
         }
         else { // No need to partition
-            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(ends, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap());
+            AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(ends, opticalDuplicateFinder, libraryIdGenerator.getOpticalDupesByLibraryIdMap(), annotateOpticalDuplicates);
+        }
+    }
+
+    private static void trackOpticalDuplicates(final List<? extends ReadEnds> list,
+                                                    final OpticalDuplicateFinder opticalDuplicateFinder,
+                                                    final Histogram<Short> opticalDupesByLibraryId,
+                                                    final boolean annotateOpticalDuplicates) {
+        final boolean[] opticalDuplicateFlags = trackOpticalDuplicates(list, opticalDuplicateFinder, opticalDupesByLibraryId);
+        int i = 0;
+        final ListIterator<? extends ReadEnds> iterator = list.listIterator();
+        for (final boolean b: opticalDuplicateFlags) {
+            final ReadEnds end = iterator.next();
+            if (opticalDuplicateFlags[i]) {
+                end.isOpticalDuplicate = true;
+            }
+            i++;
         }
     }
 
@@ -284,7 +307,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
      * Looks through the set of reads and identifies how many of the duplicates are
      * in fact optical duplicates, and stores the data in the instance level histogram.
      */
-    private static void trackOpticalDuplicates(final List<? extends OpticalDuplicateFinder.PhysicalLocation> list,
+    private static boolean[] trackOpticalDuplicates(final List<? extends OpticalDuplicateFinder.PhysicalLocation> list,
                                                  final OpticalDuplicateFinder opticalDuplicateFinder,
                                                  final Histogram<Short> opticalDupesByLibraryId) {
 
@@ -295,5 +318,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         if (opticalDuplicates > 0) {
             opticalDupesByLibraryId.increment(list.get(0).getLibraryId(), opticalDuplicates);
         }
+
+        return opticalDuplicateFlags;
     }
 }

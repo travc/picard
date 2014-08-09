@@ -42,7 +42,7 @@ abstract public class ReadEnds implements OpticalDuplicateFinder.PhysicalLocatio
 
     /** For optical duplicate detection the orientation matters regard to 1st or 2nd end of a mate */
     public byte orientationForOpticalDuplicates = -1;
-
+    public boolean isOpticalDuplicate = false; // this is an internal variable
 
     public boolean isPaired() { return this.read2Sequence != -1; }
 

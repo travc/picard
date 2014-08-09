@@ -63,6 +63,9 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
     @Option(doc="The block size for use in the coordinate-sorted record buffer. Default = 100,000", optional = true)
     public int BLOCK_SIZE = 100000;
 
+    @Option(doc="Annotate optical duplicates with the OD tag", optional = true)
+    public boolean ANNOTATE_OPTICAL_DUPLICATES = false;
+
     /** Warnings that will only be emitted once */
     private boolean warnedNullProgramRecords = false;
     private boolean warnedMissingProgramRecords = false;
@@ -111,7 +114,8 @@ public class MarkDuplicatesWithMateCigar extends AbstractMarkDuplicateFindingAlg
                 this.SKIP_PAIRS_WITH_NO_MATE_CIGAR,
                 this.MAX_RECORDS_IN_RAM,
                 this.BLOCK_SIZE,
-                this.TMP_DIR);
+                this.TMP_DIR,
+                this.ANNOTATE_OPTICAL_DUPLICATES);
 
         // progress logger!
         final ProgressLogger progress = new ProgressLogger(log, (int) 1e6, "Read");

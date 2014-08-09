@@ -99,6 +99,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
     boolean isClosed = true;
 
+    boolean annotateOpticalDuplicates = false;
+
     /**
      * Initializes the mark duplicates iterator.
      * @param header the SAM header
@@ -110,6 +112,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      * @param skipPairsWithNoMateCigar true to not return mapped pairs with no mate cigar, false otherwise
      * @param blockSize the size of the blocks in the underlying buffer/queue
      * @param tmpDirs the temporary directories to use if we spill records to disk
+     * @param annotateOpticalDuplicates true if we are to annotate optical duplicates with the OD tag, false otherwise
      * @throws PicardException if the inputs are not in coordinate sort order
      */
     public MarkDuplicatesWithMateCigarIterator(final SAMFileHeader header,
@@ -121,7 +124,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                                                final boolean skipPairsWithNoMateCigar,
                                                final int maxRecordsInRam,
                                                final int blockSize,
-                                               final List<File> tmpDirs) throws PicardException {
+                                               final List<File> tmpDirs,
+                                               final boolean annotateOpticalDuplicates) throws PicardException {
         if (header.getSortOrder() != SAMFileHeader.SortOrder.coordinate) {
             throw new PicardException(this.getClass().getName() + " expects the input to be in coordinate sort order.");
         }
@@ -135,6 +139,8 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
         this.opticalDuplicateFinder = opticalDuplicateFinder;
         toMarkQueue = new MarkQueue(duplicateScoringStrategy);
         libraryIdGenerator = new LibraryIdGenerator(header);
+
+        this.annotateOpticalDuplicates = annotateOpticalDuplicates;
 
         // Check for supported scoring strategies
         switch (duplicateScoringStrategy) {
@@ -581,7 +587,10 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
                 if (!locations.isEmpty()) {
                     AbstractMarkDuplicateFindingAlgorithm.trackOpticalDuplicates(new ArrayList<ReadEnds>(locations),
-                            this.opticalDuplicateFinder, this.libraryIdGenerator);
+                            this.opticalDuplicateFinder, this.libraryIdGenerator, this.annotateOpticalDuplicates);
+                    if (next.isOpticalDuplicate) {
+                        next.getRecord().setAttribute("OD", (byte)1);
+                    }
                 }
             }
 
