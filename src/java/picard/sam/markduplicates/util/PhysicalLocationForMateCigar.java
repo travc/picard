@@ -4,7 +4,7 @@ package picard.sam.markduplicates.util;
  * @author nhomer
  */
 /** Stores the minimal information needed for optical duplicate detection. */
-public class PhysicalLocationMC implements OpticalDuplicateFinder.PhysicalLocation {
+public class PhysicalLocationForMateCigar implements OpticalDuplicateFinder.PhysicalLocation {
 
     // Information used to detect optical dupes
     short readGroup = -1;
@@ -12,7 +12,7 @@ public class PhysicalLocationMC implements OpticalDuplicateFinder.PhysicalLocati
     short x = -1, y = -1;
     short libraryId;
 
-    public PhysicalLocationMC(final OpticalDuplicateFinder.PhysicalLocation rec) {
+    public PhysicalLocationForMateCigar(final OpticalDuplicateFinder.PhysicalLocation rec) {
         this.setReadGroup(rec.getReadGroup());
         this.setTile(rec.getTile());
         this.setX(rec.getX());
@@ -33,9 +33,9 @@ public class PhysicalLocationMC implements OpticalDuplicateFinder.PhysicalLocati
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof PhysicalLocationMC) {
+        if (other instanceof PhysicalLocationForMateCigar) {
             int cmp;
-            PhysicalLocationMC loc = (PhysicalLocationMC)other;
+            PhysicalLocationForMateCigar loc = (PhysicalLocationForMateCigar)other;
             cmp = getLibraryId() - loc.getLibraryId();
             if (0 == cmp) cmp = getReadGroup() - loc.getReadGroup();
             if (0 == cmp) cmp = getTile() - loc.getTile();

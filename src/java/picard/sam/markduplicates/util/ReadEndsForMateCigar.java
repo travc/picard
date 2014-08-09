@@ -6,7 +6,9 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMUtils;
 import picard.PicardException;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A class to store individual records for MarkDuplicatesWithMateCigar.  This aids in comparing records to determine which need to
@@ -19,6 +21,11 @@ public class ReadEndsForMateCigar extends ReadEnds {
 
     // we need this reference so we can access the mate cigar among other things
     public SamRecordIndex samRecordIndex = null;
+
+    /** Physical locations used for optical duplicate tracking.  This is only stored for paired end reads where both ends are mapped,
+     * and when we see the first mate.
+     */
+    private PhysicalLocationForMateCigarSet locationSet = null;
 
     /** Builds a read ends object that represents a single read. */
     public ReadEndsForMateCigar(final SAMFileHeader header, final SamRecordIndex samRecordIndex,
@@ -110,4 +117,27 @@ public class ReadEndsForMateCigar extends ReadEnds {
 
     @Override
     public boolean isPaired() { return this.getRecord().getReadPairedFlag(); }
+
+    /** Gets the read ends for optical duplicate tracking */
+    public Set<ReadEnds> getReadEndSetForOpticalDuplicates() {
+        if (null == this.locationSet) throw new PicardException("Already called getReadEndSetForOpticalDuplicates");
+        final Set<ReadEnds> locationSet = this.locationSet.getReadEnds();
+        this.locationSet = null;
+        return locationSet;
+    }
+
+    public PhysicalLocationForMateCigarSet getLocationSet() {
+        return this.locationSet;
+    }
+
+    public PhysicalLocationForMateCigarSet removeLocationSet() {
+        final PhysicalLocationForMateCigarSet locationSet = this.locationSet;
+        this.locationSet = null;
+        return locationSet;
+    }
+
+    public void setLocationSet(final PhysicalLocationForMateCigarSet locationSet) {
+        this.locationSet = locationSet;
+    }
+
 }
