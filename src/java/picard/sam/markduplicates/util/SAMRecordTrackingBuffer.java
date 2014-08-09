@@ -7,8 +7,8 @@ import htsjdk.samtools.util.DiskBackedQueue;
 import picard.PicardException;
 
 import java.io.File;
-import java.lang.reflect.Constructor;
 import java.util.ArrayDeque;
+import java.util.BitSet;
 import java.util.Deque;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -150,7 +150,7 @@ public class SAMRecordTrackingBuffer {
      * @throws PicardException if the provided recordIndex is not found within the SAMRecordTrackingBuffer
      */
     public void setExamined(final SamRecordIndex samRecordIndex, final boolean examinedState) {
-        BufferBlock block = getBlock(samRecordIndex);
+        final BufferBlock block = getBlock(samRecordIndex);
         if (null == block) {
             throw new PicardException("Attempted to set examined information on a samRecordIndex whose index is not found " +
                     "in the SAMRecordTrackingBuffer. recordIndex: " + samRecordIndex.getRecordIndex());
@@ -175,11 +175,11 @@ public class SAMRecordTrackingBuffer {
         private final DiskBackedQueue<SAMRecord> recordsQueue;
         private final int maxBlockSize;
         private int currentStartIndex;
-        private int originalStartIndex;
+        private final int originalStartIndex;
         private int endIndex;
-        // TODO: we can reduce memory of these if we use bit sets
-        private byte[] wasExaminedIndexes = null; // stores in each byte 0/1 indicating if this record has been examined.
-        private byte[] examinedStateIndexes = null; // stores the state of the examination 0/1
+
+        private final BitSet wasExaminedIndexes;
+        private final BitSet examinedStateIndexes;
 
         /** Creates an empty block buffer, with an allowable # of records in RAM */
         public BufferBlock(final int maxBlockSize, final int maxBlockRecordsInMemory, final List<File> tmpDirs,
@@ -189,8 +189,8 @@ public class SAMRecordTrackingBuffer {
             this.maxBlockSize = maxBlockSize;
             this.currentStartIndex = 0;
             this.endIndex = -1;
-            this.wasExaminedIndexes = new byte[maxBlockSize];
-            this.examinedStateIndexes = new byte[maxBlockSize];
+            this.wasExaminedIndexes = new BitSet(maxBlockSize);
+            this.examinedStateIndexes = new BitSet(maxBlockSize);
             this.originalStartIndex = originalStartIndex;
         }
 
@@ -244,8 +244,8 @@ public class SAMRecordTrackingBuffer {
          */
         public void setExamined(final SamRecordIndex samRecordIndex, final boolean examinedState) {
             // find the correct byte array index and update both metadata byte arrays
-            this.wasExaminedIndexes[samRecordIndex.getRecordIndex() - this.originalStartIndex] = 1;
-            this.examinedStateIndexes[samRecordIndex.getRecordIndex() - this.originalStartIndex] = (examinedState) ? (byte)1 : 0; //NB: why the need to cast here?
+            this.wasExaminedIndexes.set(samRecordIndex.getRecordIndex() - this.originalStartIndex, true);
+            this.examinedStateIndexes.set(samRecordIndex.getRecordIndex() - this.originalStartIndex, examinedState);
         }
 
         public boolean isEmpty() {
@@ -254,7 +254,7 @@ public class SAMRecordTrackingBuffer {
 
         public boolean canEmit() {
             // TODO: what if isEmpty() == true?
-            return (this.wasExaminedIndexes[this.currentStartIndex - this.originalStartIndex] == 1);
+            return this.wasExaminedIndexes.get(this.currentStartIndex - this.originalStartIndex);
         }
 
         public SamRecordIndex next() throws IllegalStateException {
@@ -264,10 +264,10 @@ public class SAMRecordTrackingBuffer {
                     final SamRecordIndex samRecordIndex = clazz.newInstance();
                     samRecordIndex.setRecord(this.recordsQueue.poll());
                     samRecordIndex.setRecordIndex(this.currentStartIndex);
-                    samRecordIndex.setExaminedState(this.examinedStateIndexes[this.currentStartIndex - this.originalStartIndex] == 1);
+                    samRecordIndex.setExaminedState(this.examinedStateIndexes.get(this.currentStartIndex - this.originalStartIndex));
                     this.currentStartIndex++;
                     return samRecordIndex;
-                } catch (Exception e) {
+                } catch (final Exception e) {
                     throw new RuntimeException(e);
                 }
             } else {
