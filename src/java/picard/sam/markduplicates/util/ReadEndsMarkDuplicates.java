@@ -1,7 +1,7 @@
 package picard.sam.markduplicates.util;
 
 /**
- *  Little struct-like class to hold read pair (and fragment) end data for MarkDuplicates
+ *  Little struct-like class to hold read pair (and fragment) end data for MarkDuplicatesWithMateCigar
  * @author Nils Homer
  */
 public class ReadEndsMarkDuplicates extends ReadEnds {

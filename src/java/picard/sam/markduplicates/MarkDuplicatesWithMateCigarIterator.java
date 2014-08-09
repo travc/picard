@@ -32,7 +32,7 @@ import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.*;
 import htsjdk.samtools.DuplicateScoringStrategy.ScoringStrategy;
 import htsjdk.samtools.util.CloseableIterator;
-import picard.sam.markduplicates.util.DuplicateMarkingBuffer;
+import picard.sam.markduplicates.util.SAMRecordTrackingBuffer;
 import picard.sam.markduplicates.util.*;
 
 import java.io.File;
@@ -73,7 +73,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      * duplicate marking flag.  By definition, any record in the toMarkQueue will also be in the outputBuffer,
      * so we can omit checking the size of the toMarkQueue in some cases.
      */
-    private DuplicateMarkingBuffer outputBuffer = null;
+    private SAMRecordTrackingBuffer outputBuffer = null;
 
     /**
      * The queue that stores the records that currently are not marked as duplicates.  These need to be kept until
@@ -128,7 +128,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
         this.header = header;
         this.backingIterator = new PeekableIterator<SAMRecord>(iterator);
-        this.outputBuffer = new DuplicateMarkingBuffer(maxRecordsInRam, blockSize, tmpDirs, header);
+        this.outputBuffer = new SAMRecordTrackingBuffer(maxRecordsInRam, blockSize, tmpDirs, header, SamRecordIndexDuplicateFlag.class);
 
         this.removeDuplicates = removeDuplicates;
         this.skipPairsWithNoMateCigar = skipPairsWithNoMateCigar;
@@ -262,7 +262,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 // NB: need to addRecordToTheOutputBuffer/set-flag as chunking/flushing of the toMarkQueue may need to occur
                 this.addRecordToTheOutputBuffer(samRecordIndex); // now samRecordIndex will be stored in outputBuffer for return
                 this.backingIteratorRecordIndex++;
-                this.outputBuffer.setDuplicateMarkingFlags(samRecordIndex, false); // indicate the present wrapped samRecordIndex is available for return
+                this.outputBuffer.setExamined(samRecordIndex, false); // indicate the present wrapped samRecordIndex is available for return
                 this.numRecordsWithNoMateCigar++;
                 this.backingIterator.next(); // remove it, since we called this.backingIterator.peek()
                 return true;
@@ -315,9 +315,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      * can happen if the alignment start is increasing but 5' soft-clipping is increasing such that we miss reads with
      * the same 5' unclipped alignment start.  This is especially true for RNAseq.
      */
-    private void checkForMinimumDistanceFailure(final ReadEndsMC current) {
+    private void checkForMinimumDistanceFailure(final ReadEndsForMateCigar current) {
         if (!toMarkQueue.isEmpty()) {
-            final ReadEndsMC other = toMarkQueue.peek();
+            final ReadEndsForMateCigar other = toMarkQueue.peek();
             if (other.read1Sequence == current.read1Sequence && this.toMarkQueue.getToMarkQueueMinimumDistance() <= other.read1Coordinate - current.read1Coordinate) {
                 if (checkCigarForSkips(other.getRecord().getCigar())) {
                     throw new PicardException("Found a samRecordIndex with sufficiently large code length that we may have\n"
@@ -388,9 +388,9 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
             // NB: we could get rid of this if we made this.nextRecord into a list...
             // NB: we do not actually remove this record from the backing iterator until much later, to help with processing unmapped reads at the EOF
             SAMRecord record = this.backingIterator.peek(); // peek: used for unmapped reads
-            final SamRecordIndex samRecordIndex = new SamRecordIndex(record, this.backingIteratorRecordIndex);
+            final SamRecordIndex samRecordIndex = new SamRecordIndexDuplicateFlag(record, this.backingIteratorRecordIndex);
 
-            ReadEndsMC readEnds = null;
+            ReadEndsForMateCigar readEnds = null;
             boolean performedChunkAndMarkTheDuplicates = false;
 
             // remove duplicate information
@@ -423,7 +423,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                 }
 
                 // build a read end for use in the toMarkQueue
-                readEnds = new ReadEndsMC(header, samRecordIndex, opticalDuplicateFinder, libraryIdGenerator.getLibraryIdFromRecord(samRecordIndex.getRecord()));
+                readEnds = new ReadEndsForMateCigar(header, samRecordIndex, opticalDuplicateFinder, libraryIdGenerator.getLibraryIdFromRecord(samRecordIndex.getRecord()));
 
                 // check that the minimumDistance was not too small
                 checkForMinimumDistanceFailure(readEnds);
@@ -441,7 +441,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
 
             // We do not consider secondary, supplementary, or unmapped alignments for duplicate marking. We can thus mark that duplicate marking on them has been completed.
             if (record.isSecondaryOrSupplementary() || record.getReadUnmappedFlag()) {
-                this.outputBuffer.setDuplicateMarkingFlags(samRecordIndex, false);
+                this.outputBuffer.setExamined(samRecordIndex, false);
             }
             else {
                 // Bring the simple metrics up to date
@@ -552,7 +552,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
      * @param current the current end to ensure we consider all possible ends for a duplicate
      * @return true if we did get at least one record, false otherwise
      */
-    private boolean tryPollingTheToMarkQueue(final boolean flush, final ReadEndsMC current) {
+    private boolean tryPollingTheToMarkQueue(final boolean flush, final ReadEndsForMateCigar current) {
         boolean performedChunkAndMarkTheDuplicates = false;
 
         if (!flush && null == current) throw new PicardException("Flush cannot be false and current be null");
@@ -572,7 +572,7 @@ public class MarkDuplicatesWithMateCigarIterator implements SAMRecordIterator {
                         this.toMarkQueue.getToMarkQueueMinimumDistance() < current.read1Coordinate - toMarkQueue.peek().read1Coordinate)) {
 
             // Poll will track that this samRecordIndex has been through duplicate marking. It is not marked as a duplicate :)
-            final ReadEndsMC next = this.toMarkQueue.poll(outputBuffer, header, opticalDuplicateFinder, libraryIdGenerator); // get the first one!
+            final ReadEndsForMateCigar next = this.toMarkQueue.poll(outputBuffer, header, opticalDuplicateFinder, libraryIdGenerator); // get the first one!
             performedChunkAndMarkTheDuplicates = true;
 
             // track optical duplicates using only those reads that are the first end...

@@ -100,7 +100,7 @@ public class ReadEndsMarkDuplicatesCodec implements SortingCollection.Codec<Read
             read.x         = this.in.readShort();
             read.y         = this.in.readShort();
 
-            byte[] bytes = new byte[this.in.readInt()];
+            final byte[] bytes = new byte[this.in.readInt()];
             this.in.read(bytes);
             read.name = new String(bytes);
 

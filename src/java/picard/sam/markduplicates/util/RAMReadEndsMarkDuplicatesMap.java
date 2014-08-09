@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
- * Map from String to ReadEnds object.  RAM-based implementation.
+ * Map from String to ReadEnds object.  RAM-based implementation.  Used for MarkDuplicates.
  *
  * @author alecw@broadinstitute.org
  */

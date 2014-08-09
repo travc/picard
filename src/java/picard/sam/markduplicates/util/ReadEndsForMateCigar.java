@@ -9,18 +9,20 @@ import picard.PicardException;
 import java.util.List;
 
 /**
- * @author nhomer
+ * A class to store individual records for MarkDuplicatesWithMateCigar.  This aids in comparing records to determine which need to
+ * be compared when we mark duplicates.  We also store the original SAMRecord and its ordinal in the input file (in SamRecordIndex) to
+ * access optional tags (mate cigar) and other information.
  */
-// NB: could refactor to use ReadEndsMC.java
-public class ReadEndsMC extends ReadEnds {
-    // to see if we either end is unmapped
+public class ReadEndsForMateCigar extends ReadEnds {
+    // to see if either end is unmapped
     byte hasUnmapped = 0;
 
     // we need this reference so we can access the mate cigar among other things
     public SamRecordIndex samRecordIndex = null;
 
     /** Builds a read ends object that represents a single read. */
-    public ReadEndsMC(final SAMFileHeader header, final SamRecordIndex samRecordIndex, final OpticalDuplicateFinder opticalDuplicateFinder, final short libraryId) {
+    public ReadEndsForMateCigar(final SAMFileHeader header, final SamRecordIndex samRecordIndex,
+                                final OpticalDuplicateFinder opticalDuplicateFinder, final short libraryId) {
 
         this.readGroup = -1;
         this.tile = -1;
@@ -57,7 +59,7 @@ public class ReadEndsMC extends ReadEnds {
             }
         }
         else {
-            this.orientation = record.getReadNegativeStrandFlag() ? ReadEndsMC.R : ReadEndsMC.F;
+            this.orientation = record.getReadNegativeStrandFlag() ? ReadEndsForMateCigar.R : ReadEndsForMateCigar.F;
         }
 
         // Fill in the library ID
@@ -84,7 +86,8 @@ public class ReadEndsMC extends ReadEnds {
         }
     }
 
-    public ReadEndsMC(final ReadEndsMC other, final SamRecordIndex samRecordIndex) {
+    /** Creates a shallow copy from the "other" */
+    public ReadEndsForMateCigar(final ReadEndsForMateCigar other, final SamRecordIndex samRecordIndex) {
         this.readGroup = other.readGroup;
         this.tile = other.tile;
         this.x = other.x;
@@ -99,12 +102,11 @@ public class ReadEndsMC extends ReadEnds {
         this.libraryId = other.libraryId;
     }
 
-    // Track that underlying SAMRecord has been through duplicate marking
-//        public void setHasBeenMarkedFlag() { super.setHasBeenMarkedFlag(samRecordIndex.getReadName(), true);}
+    /** A number of convenience functions */
     public SamRecordIndex getsamRecordIndex() { return this.samRecordIndex; }
     public SAMRecord getRecord() { return this.samRecordIndex.getRecord(); }
     public String getRecordReadName() { return this.samRecordIndex.getRecord().getReadName(); }
-    public int getRecordIndex() { return this.samRecordIndex.getCoordinateSortedIndex(); }
+    public int getRecordIndex() { return this.samRecordIndex.getRecordIndex(); }
 
     @Override
     public boolean isPaired() { return this.getRecord().getReadPairedFlag(); }

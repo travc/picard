@@ -10,13 +10,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * A class to generate library Ids and keep duplication metrics by library IDs.
  * @author nhomer
  */
 public class LibraryIdGenerator {
 
-    public final SAMFileHeader header;
-    protected final Map<String,Short> libraryIds = new HashMap<String,Short>();
-    protected short nextLibraryId = 1;
+    private final SAMFileHeader header;
+    private final Map<String, Short> libraryIds = new HashMap<String,Short>(); // from library string to library id
+    private short nextLibraryId = 1;
     private final Map<String,DuplicationMetrics> metricsByLibrary = new HashMap<String,DuplicationMetrics>();
     private final Histogram<Short> opticalDupesByLibraryId = new Histogram<Short>();
 

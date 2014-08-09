@@ -86,6 +86,10 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
     // will be stored in this set.
     protected final Set<String> pgIdsSeen = new HashSet<String>();
 
+    /**
+     * We have to re-chain the program groups based on this algorithm.  This returns the map from existing program group ID
+     * to new program group ID.
+     */
     protected Map<String, String> getChainedPgIds(final SAMFileHeader outputHeader) {
         final Map<String, String> chainedPgIds;
         // Generate new PG record(s)
@@ -114,6 +118,10 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         return chainedPgIds;
     }
 
+    /**
+     * Writes the metrics given by the libraryIdGenerator to the METRICS_FILE.
+     * @param libraryIdGenerator
+     */
     protected void writeMetrics(final LibraryIdGenerator libraryIdGenerator) {
 
         final Map<String,DuplicationMetrics> metricsByLibrary = libraryIdGenerator.getMetricsByLibraryMap();
@@ -148,6 +156,7 @@ public abstract class AbstractMarkDuplicateFindingAlgorithm extends AbstractDupl
         file.write(METRICS_FILE);
     }
 
+    /** Little class to generate program group IDs */
     static class PgIdGenerator {
         private int recordCounter;
 
