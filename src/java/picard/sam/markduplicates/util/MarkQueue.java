@@ -62,6 +62,14 @@ public class MarkQueue {
             // TODO: cache the scores?
             if (retval == 0) retval = DuplicateScoringStrategy.compare(lhs.getRecord(), rhs.getRecord(), this.duplicateScoringStrategy, true);
             if (retval == 0) retval = lhs.getRecordReadName().compareTo(rhs.getRecordReadName());
+            /**
+             * If both reads are paired and both ends mapped, always prefer the first end over the second end.  This is needed to
+             * properly choose the first end for optical duplicate identification when both ends are mapped to the same position etc.
+             */
+            if (retval == 0 && lhs.isPaired() && rhs.isPaired()) {
+                if (lhs.getRecord().getFirstOfPairFlag()) retval = -1;
+                else retval = 1;
+            }
 
             return retval;
         }

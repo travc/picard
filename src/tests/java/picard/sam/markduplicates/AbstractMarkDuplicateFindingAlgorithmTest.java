@@ -520,4 +520,13 @@ public abstract class AbstractMarkDuplicateFindingAlgorithmTest {
         tester.addMatePair("RUNID:6:101:17616:6888", 1, 0, 18281, 123989, false, false, false, false, "52M49S", "37S64M", false, false, false, false, false, DEFAULT_BASE_QUALITY);
         tester.runTest();
     }
+
+    @Test
+    public void testOpticalDuplicateClustersAddingSecondEndFirstSameCoordinate() {
+        final AbstractMarkDuplicateFindingAlgorithmTester tester = getTester();
+        tester.setExpectedOpticalDuplicate(1);
+        tester.addMatePair("RUNID:1:1:15993:13361", 2, 41212324, 41212310, false, false, false, false, "33S35M", "19S49M", true, true, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.addMatePair("RUNID:1:1:16020:13352", 2, 41212324, 41212319, false, false, true, true, "33S35M", "28S40M", true, true, false, false, false, DEFAULT_BASE_QUALITY);
+        tester.runTest();
+    }
 }
