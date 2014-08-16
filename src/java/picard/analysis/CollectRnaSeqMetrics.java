@@ -56,7 +56,6 @@ public class CollectRnaSeqMetrics extends SinglePassSamProgram {
             " coding, intronic, UTR, intergenic, ribosomal.\n" +
             "Also determines strand-specificity for strand-specific libraries.";
 
-
     @Option(doc="Gene annotations in refFlat form.  Format described here: http://genome.ucsc.edu/goldenPath/gbdDescriptionsOld.html#RefFlat")
     public File REF_FLAT;
 

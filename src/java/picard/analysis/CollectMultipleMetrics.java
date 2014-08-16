@@ -67,8 +67,15 @@ public class CollectMultipleMetrics extends CommandLineProgram {
                 program.CHART_OUTPUT = new File(outbase + ".base_distribution_by_cycle.pdf");
                 return program;
             }
-        };
-
+        },
+        RnaSeqMetrics {
+            public SinglePassSamProgram makeInstance(final String outbase) {
+                final CollectRnaSeqMetrics program = new CollectRnaSeqMetrics();
+                program.OUTPUT       = new File(outbase + ".rna_metrics");
+                program.CHART_OUTPUT = new File(outbase + ".rna_coverage.pdf");
+                return program;
+            }
+        }
     }
 
     @Usage
@@ -94,7 +101,7 @@ public class CollectMultipleMetrics extends CommandLineProgram {
     public String OUTPUT;
 
     @Option(doc="List of metrics programs to apply during the pass through the SAM file.")
-    public List<Program> PROGRAM = CollectionUtil.makeList(Program.values());
+    public List<Program> PROGRAM;
 
     /**
      * Contents of PROGRAM list is transferred to this list during command-line validation, so that an outside
@@ -102,6 +109,13 @@ public class CollectMultipleMetrics extends CommandLineProgram {
      * setProgramsToRun().
      */
     private List<ProgramInterface> programsToRun;
+
+    public CollectMultipleMetrics() {
+        PROGRAM.add(Program.CollectAlignmentSummaryMetrics);
+        PROGRAM.add(Program.CollectInsertSizeMetrics);
+        PROGRAM.add(Program.QualityScoreDistribution);
+        PROGRAM.add(Program.MeanQualityByCycle);
+    }
 
     // Stock main method
     public static void main(final String[] args) {
