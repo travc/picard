@@ -25,10 +25,11 @@
 package picard.analysis;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
@@ -118,7 +119,7 @@ public class CollectGcBiasMetrics extends CommandLineProgram {
         final long[] basesByGc  = new long[101];
         final long[] errorsByGc = new long[101];
 
-        final SAMFileReader sam = new SAMFileReader(INPUT);
+        final SamReader sam = SamReaderFactory.makeDefault().open(INPUT);
 
         if (!ASSUME_SORTED && sam.getFileHeader().getSortOrder() != SAMFileHeader.SortOrder.coordinate) {
             throw new PicardException("Header of input file " + INPUT.getAbsolutePath() + " indicates that it is not coordinate sorted.  " +

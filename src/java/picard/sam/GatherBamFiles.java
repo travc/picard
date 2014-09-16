@@ -2,10 +2,11 @@ package picard.sam;
 
 import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
@@ -80,16 +81,16 @@ public class GatherBamFiles extends CommandLineProgram {
     private static void gatherNormally(final List<File> inputs, final File output, final boolean createIndex, final boolean createMd5) {
         final SAMFileHeader header;
         {
-            final SAMFileReader tmp = new SAMFileReader(inputs.get(0));
+            final SamReader tmp = SamReaderFactory.makeDefault().open(inputs.get(0));
             header = tmp.getFileHeader();
-            tmp.close();
+            CloserUtil.close(tmp);
         }
 
         final SAMFileWriter out = new SAMFileWriterFactory().setCreateIndex(createIndex).setCreateMd5File(createMd5).makeSAMOrBAMWriter(header, true, output);
 
         for (final File f : inputs) {
             log.info("Gathering " + f.getAbsolutePath());
-            final SAMFileReader in = new SAMFileReader(f);
+            final SamReader in = SamReaderFactory.makeDefault().open(f);
             for (final SAMRecord rec : in) out.addAlignment(rec);
             CloserUtil.close(in);
         }

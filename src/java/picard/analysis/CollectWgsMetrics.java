@@ -1,8 +1,9 @@
 package picard.analysis;
 
 import htsjdk.samtools.AlignmentBlock;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.filter.SecondaryAlignmentFilter;
 import htsjdk.samtools.metrics.MetricBase;
@@ -128,7 +129,7 @@ public class CollectWgsMetrics extends CommandLineProgram {
         // Setup all the inputs
         final ProgressLogger progress = new ProgressLogger(log, 10000000, "Processed", "loci");
         final ReferenceSequenceFileWalker refWalker = new ReferenceSequenceFileWalker(REFERENCE_SEQUENCE);
-        final SAMFileReader in        = new SAMFileReader(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
 
         final SamLocusIterator iterator = new SamLocusIterator(in);
         final List<SamRecordFilter> filters   = new ArrayList<SamRecordFilter>();

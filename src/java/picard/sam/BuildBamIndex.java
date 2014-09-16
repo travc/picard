@@ -29,7 +29,9 @@ import htsjdk.samtools.BAMIndexer;
 import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
@@ -106,18 +108,18 @@ public class BuildBamIndex extends CommandLineProgram {
         }
 
         IOUtil.assertFileIsWritable(OUTPUT);
-        final SAMFileReader bam;
+        final SamReader bam;
 
         if (inputUrl != null) {
             // remote input
-            bam = new SAMFileReader(inputUrl, null, false);
+            bam = SamReaderFactory.makeDefault().disable(SamReaderFactory.Option.EAGERLY_DECODE).open(SamInputResource.of(inputUrl));
         } else {
             // input from a normal file
             IOUtil.assertFileIsReadable(inputFile);
-            bam = new SAMFileReader(inputFile);
+            bam = SamReaderFactory.makeDefault().open(inputFile);
         }
 
-        if (!bam.isBinary()) {
+        if (bam.type() != SamReader.Type.BAM_TYPE) {
             throw new SAMException("Input file must be bam file, not sam file.");
         }
 

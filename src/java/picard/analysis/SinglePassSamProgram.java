@@ -2,10 +2,12 @@ package picard.analysis;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFileWalker;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.ProgressLogger;
@@ -62,7 +64,7 @@ public abstract class SinglePassSamProgram extends CommandLineProgram {
 
         // Setup the standard inputs
         IOUtil.assertFileIsReadable(input);
-        final SAMFileReader in = new SAMFileReader(input);
+        final SamReader in = SamReaderFactory.makeDefault().open(input);
 
         // Optionally load up the reference sequence and double check sequence dictionaries
         final ReferenceSequenceFileWalker walker;
@@ -130,7 +132,7 @@ public abstract class SinglePassSamProgram extends CommandLineProgram {
             }
         }
 
-        in.close();
+        CloserUtil.close(in);
 
         for (final SinglePassSamProgram program : programs) {
             program.finish();

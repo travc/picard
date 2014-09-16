@@ -2,7 +2,7 @@ package picard.sam;
 
 import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.IOUtil;
 import picard.PicardException;
 import picard.cmdline.CommandLineProgram;
@@ -42,7 +42,7 @@ public class AddCommentsToBam extends CommandLineProgram {
             throw new PicardException("SAM files are not supported");
         }
 
-        final SAMFileHeader samFileHeader = new SAMFileReader(INPUT).getFileHeader();
+        final SAMFileHeader samFileHeader = SamReaderFactory.makeDefault().open(INPUT).getFileHeader();
         for (final String comment : COMMENT) {
             if (comment.contains("\n")) {
                 throw new PicardException("Comments can not contain a new line");

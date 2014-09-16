@@ -1,9 +1,10 @@
 package picard.sam;
 
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.ProgressLogger;
@@ -52,7 +53,7 @@ public class DownsampleSam extends CommandLineProgram {
         IOUtil.assertFileIsWritable(OUTPUT);
 
         final Random r = RANDOM_SEED == null ? new Random() : new Random(RANDOM_SEED);
-        final SAMFileReader in = new SAMFileReader(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
         final SAMFileWriter out = new SAMFileWriterFactory().makeSAMOrBAMWriter(in.getFileHeader(), true, OUTPUT);
         final Map<String,Boolean> decisions = new HashMap<String,Boolean>();
 

@@ -24,10 +24,11 @@
 package picard.sam;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -83,7 +84,7 @@ public class RevertSamTest {
         }
         reverter.instanceMain(args);
 
-        SAMFileReader reader = new SAMFileReader(output);
+        SamReader reader = SamReaderFactory.makeDefault().open(output);
         SAMFileHeader header = reader.getFileHeader();
         Assert.assertEquals(header.getSortOrder(), SAMFileHeader.SortOrder.queryname);
         Assert.assertEquals(header.getProgramRecords().size(), removeAlignmentInfo ? 0 : 1);

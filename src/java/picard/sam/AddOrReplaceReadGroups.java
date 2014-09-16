@@ -2,12 +2,14 @@ package picard.sam;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Iso8601Date;
 import htsjdk.samtools.util.Log;
@@ -78,7 +80,7 @@ public class AddOrReplaceReadGroups extends CommandLineProgram {
         IOUtil.assertFileIsReadable(INPUT);
         IOUtil.assertFileIsWritable(OUTPUT);
 
-        final SAMFileReader in = new SAMFileReader(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
 
         // create the read group we'll be using
         final SAMReadGroupRecord rg = new SAMReadGroupRecord(RGID);
@@ -111,7 +113,7 @@ public class AddOrReplaceReadGroups extends CommandLineProgram {
         }
 
         // cleanup
-        in.close();
+        CloserUtil.close(in);
         outWriter.close();
         return 0;
     }

@@ -24,10 +24,12 @@
 package picard.sam;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.ProgressLogger;
@@ -64,7 +66,7 @@ public class SortSam extends CommandLineProgram {
     protected int doWork() {
         IOUtil.assertFileIsReadable(INPUT);
         IOUtil.assertFileIsWritable(OUTPUT);
-        final SAMFileReader reader = new SAMFileReader(IOUtil.openFileForReading(INPUT));
+        final SamReader reader = SamReaderFactory.makeDefault().open(INPUT);;
         reader.getFileHeader().setSortOrder(SORT_ORDER);
         final SAMFileWriter writer = new SAMFileWriterFactory().makeSAMOrBAMWriter(reader.getFileHeader(), false, OUTPUT);
 	    writer.setProgressLogger(
@@ -78,7 +80,7 @@ public class SortSam extends CommandLineProgram {
 
         log.info("Finished reading inputs, merging and writing to output now.");
 
-        reader.close();
+        CloserUtil.close(reader);
         writer.close();
         return 0;
     }

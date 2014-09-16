@@ -25,9 +25,10 @@
 package picard.sam;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.AsciiWriter;
 import htsjdk.samtools.util.IOUtil;
 import picard.PicardException;
@@ -75,7 +76,7 @@ public class ViewSam extends CommandLineProgram {
     int writeSamText(PrintStream printStream) {
         try {
             IOUtil.assertFileIsReadable(INPUT);
-            final SAMFileReader in = new SAMFileReader(INPUT);
+            final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
             final AsciiWriter writer = new AsciiWriter(printStream);
             final SAMFileHeader header = in.getFileHeader();
             if (header.getTextHeader() != null) {

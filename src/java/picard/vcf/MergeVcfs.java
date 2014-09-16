@@ -23,8 +23,8 @@
  */
 package picard.vcf;
 
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -100,7 +100,7 @@ public class MergeVcfs extends CommandLineProgram {
 		VariantContextComparator variantContextComparator = null;
 		SAMSequenceDictionary sequenceDictionary = null;
 
-		if (SEQUENCE_DICTIONARY != null) sequenceDictionary = SAMFileReader.getSequenceDictionary(SEQUENCE_DICTIONARY);
+		if (SEQUENCE_DICTIONARY != null) sequenceDictionary = SamReaderFactory.makeDefault().open(SEQUENCE_DICTIONARY).getFileHeader().getSequenceDictionary();
 
 		for (final File file : INPUT) {
 			IOUtil.assertFileIsReadable(file);

@@ -1,8 +1,9 @@
 package picard.sam;
 
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.util.Histogram;
 import htsjdk.samtools.util.IOUtil;
@@ -243,7 +244,7 @@ public class EstimateLibraryComplexity extends AbstractDuplicateFindingAlgorithm
         final ProgressLogger progress = new ProgressLogger(log, (int) 1e6, "Read");
         for (final File f : INPUT) {
             final Map<String,PairedReadSequence> pendingByName = new HashMap<String, PairedReadSequence>();
-            final SAMFileReader in = new SAMFileReader(f);
+            final SamReader in = SamReaderFactory.makeDefault().open(f);
             readGroups.addAll(in.getFileHeader().getReadGroups());
 
             for (final SAMRecord rec : in) {

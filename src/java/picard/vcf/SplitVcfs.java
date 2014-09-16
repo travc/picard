@@ -1,7 +1,7 @@
 package picard.vcf;
 
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -73,7 +73,7 @@ public class SplitVcfs extends CommandLineProgram {
 
 		final SAMSequenceDictionary sequenceDictionary =
 				SEQUENCE_DICTIONARY != null
-						? SAMFileReader.getSequenceDictionary(SEQUENCE_DICTIONARY)
+						? SamReaderFactory.makeDefault().open(SEQUENCE_DICTIONARY).getFileHeader().getSequenceDictionary()
 						: fileHeader.getSequenceDictionary();
 		if (CREATE_INDEX && sequenceDictionary == null) {
 			throw new PicardException("A sequence dictionary must be available (either through the input file or by setting it explicitly) when creating indexed output.");

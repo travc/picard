@@ -25,7 +25,8 @@ package picard.sam;
 
 import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -50,7 +51,7 @@ public class MergeSamFilesTest {
         };
         final int mergeExitStatus = new MergeSamFiles().instanceMain(args);
         Assert.assertEquals(mergeExitStatus, 0);
-        final SAMFileReader reader = new SAMFileReader(mergedOutput);
+        final SamReader reader = SamReaderFactory.makeDefault().open(mergedOutput);
         Assert.assertEquals(reader.getFileHeader().getSortOrder(), SAMFileHeader.SortOrder.coordinate);
 
         final int validateExitStatus = new ValidateSamFile().instanceMain(new String[] {"I=" + mergedOutput.getAbsolutePath()});

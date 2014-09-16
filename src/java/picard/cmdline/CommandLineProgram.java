@@ -24,7 +24,6 @@
 package picard.cmdline;
 
 import htsjdk.samtools.Defaults;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMFileWriterImpl;
 import htsjdk.samtools.SamReaderFactory;
@@ -140,8 +139,6 @@ public abstract class CommandLineProgram {
         this.defaultHeaders.add(new StringHeader("Started on: " + startDate));
 
         Log.setGlobalLogLevel(VERBOSITY);
-        final ValidationStringency originalStringency = SAMFileReader.getDefaultValidationStringency();
-        SAMFileReader.setDefaultValidationStringency(VALIDATION_STRINGENCY);
         SamReaderFactory.setDefaultValidationStringency(VALIDATION_STRINGENCY);
         BlockCompressedOutputStream.setDefaultCompressionLevel(COMPRESSION_LEVEL);
 
@@ -184,7 +181,6 @@ public abstract class CommandLineProgram {
         try {
             ret = doWork();
         } finally {
-            SAMFileReader.setDefaultValidationStringency(originalStringency);
             try {
                 // Emit the time even if program throws
                 if (!QUIET) {

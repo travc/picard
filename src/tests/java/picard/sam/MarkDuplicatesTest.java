@@ -24,10 +24,12 @@
 package picard.sam;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CollectionUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.TestUtil;
@@ -79,7 +81,7 @@ public class MarkDuplicatesTest {
 
             // Read the MarkDuplicates output file, and get the PG ID for each read.  In this particular test,
             // the PG ID should be the same for both ends of a pair.
-            final SAMFileReader reader = new SAMFileReader(outputSam);
+            final SamReader reader = SamReaderFactory.makeDefault().open(outputSam);
 
             final Map<String, String> pgIdForReadName = new HashMap<String, String>();
             for (final SAMRecord rec : reader) {
@@ -92,7 +94,7 @@ public class MarkDuplicatesTest {
                 }
             }
             final SAMFileHeader header = reader.getFileHeader();
-            reader.close();
+            CloserUtil.close(reader);
 
             // Confirm that for each read name, the chain of PG records contains exactly the number that is expected,
             // and that values in the PG chain are as expected.

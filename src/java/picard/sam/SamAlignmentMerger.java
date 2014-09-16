@@ -6,7 +6,6 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
@@ -16,12 +15,12 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.DelegatingIterator;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SortingCollection;
-import picard.PicardException;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -127,12 +126,11 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
             final File tmpFile = this.alignedSamFile != null && this.alignedSamFile.size() > 0
                     ? this.alignedSamFile.get(0)
                     : this.read1AlignedSamFile.get(0);
-            final SAMFileReader tmpReader = new SAMFileReader(tmpFile);
-            tmpReader.setValidationStringency(ValidationStringency.SILENT);
+            final SamReader tmpReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(tmpFile);
             if (tmpReader.getFileHeader().getProgramRecords().size() == 1) {
                 setProgramRecord(tmpReader.getFileHeader().getProgramRecords().get(0));
             }
-            tmpReader.close();
+            CloserUtil.close(tmpReader);
         }
 
         log.info("Processing SAM file(s): " + alignedSamFile != null ? alignedSamFile : read1AlignedSamFile + "," + read2AlignedSamFile);

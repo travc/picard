@@ -26,11 +26,12 @@ package picard.illumina;
 
 import htsjdk.samtools.ReservedTagConstants;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.metrics.MetricsFile;
 import htsjdk.samtools.util.CollectionUtil;
 import htsjdk.samtools.util.Histogram;
@@ -142,7 +143,7 @@ public class MarkIlluminaAdapters extends CommandLineProgram {
         IOUtil.assertFileIsReadable(INPUT);
         IOUtil.assertFileIsWritable(METRICS);
 
-        final SAMFileReader in = new SAMFileReader(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
         final SAMFileHeader.SortOrder order = in.getFileHeader().getSortOrder();
         SAMFileWriter out = null;
         if (OUTPUT != null) {

@@ -24,7 +24,6 @@
 package picard.sam;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
@@ -32,8 +31,11 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Log;
 import picard.PicardException;
@@ -90,14 +92,14 @@ public class ReorderSam extends CommandLineProgram {
         IOUtil.assertFileIsReadable(REFERENCE);
         IOUtil.assertFileIsWritable(OUTPUT);
 
-        final SAMFileReader in = new SAMFileReader(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
 
         ReferenceSequenceFile reference = ReferenceSequenceFileFactory.getReferenceSequenceFile(REFERENCE);
         SAMSequenceDictionary refDict = reference.getSequenceDictionary();
 
         if (refDict == null) {
         	log.error("No reference sequence dictionary found. Aborting.  You can create a sequence dictionary for the reference fasta using CreateSequenceDictionary.jar.");
-        	in.close();
+        	CloserUtil.close(in);
         	return 1;
         }
 
@@ -129,7 +131,7 @@ public class ReorderSam extends CommandLineProgram {
         }
 
         // cleanup
-        in.close();
+        CloserUtil.close(in);
         return 0;
     }
 
