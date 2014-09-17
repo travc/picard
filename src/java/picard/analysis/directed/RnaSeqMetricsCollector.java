@@ -76,7 +76,7 @@ public class RnaSeqMetricsCollector extends SAMRecordMultiLevelCollector<RnaSeqM
                 throw new PicardException("Sequence dictionaries differ in " + samFile.getAbsolutePath() + " and " + ribosomalIntervalsFile.getAbsolutePath(),
                         e);
             }
-            ribosomalIntervals.unique();
+            ribosomalIntervals.uniqued().getIntervals();
             final List<Interval> intervals = ribosomalIntervals.getIntervals();
             ribosomalSequenceOverlapDetector.addAll(intervals, intervals);
         }
