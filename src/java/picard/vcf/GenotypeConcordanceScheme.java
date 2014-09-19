@@ -51,17 +51,22 @@ public class GenotypeConcordanceScheme {
      */
     public GenotypeConcordanceScheme() {
 
-        /**          ROW STATE            HOM_REF       HET_REF_VAR1       HET_VAR1_VAR2        HOM_VAR1   **/
-        addRow(CallState.HOM_REF,         TN_ONLY,      FN_ONLY,           FN_ONLY,             FN_ONLY );
-        addRow(CallState.HET_REF_VAR1,    FP_ONLY,      TP_ONLY,           TP_FN,               TP_FN   );
-        addRow(CallState.HET_REF_VAR2,    NA,           TP_FP_FN,          TP_FN,               FN_ONLY );
-        addRow(CallState.HET_REF_VAR3,    NA,           NA,                FP_FN,               NA      );
-        addRow(CallState.HET_VAR1_VAR2,   FP_ONLY,      TP_FP,             TP_ONLY,             TP_FP_FN);
-        addRow(CallState.HET_VAR1_VAR3,   NA,           NA,                TP_FP_FN,            NA      );
-        addRow(CallState.HET_VAR3_VAR4,   FP_ONLY,      FP_FN,             FP_FN,               FP_FN   );
-        addRow(CallState.HOM_VAR1,        FP_ONLY,      TP_FP,             TP_FN,               TP_ONLY );
-        addRow(CallState.HOM_VAR2,        NA,           FP_FN,             TP_FN,               FP_FN   );
-        addRow(CallState.HOM_VAR3,        NA,           NA,                FP_FN,               NA      );
+        /**          ROW STATE            HOM_REF       HET_REF_VAR1       HET_VAR1_VAR2        HOM_VAR1        NO_CALL        LOW_GQ        LOW_DP        IS_MIXED    **/
+        addRow(CallState.HOM_REF,         TN_ONLY,      FN_ONLY,           FN_ONLY,             FN_ONLY,        EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HET_REF_VAR1,    FP_ONLY,      TP_ONLY,           TP_FN,               TP_FN,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HET_REF_VAR2,    NA,           TP_FP_FN,          TP_FN,               FN_ONLY,        EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HET_REF_VAR3,    NA,           NA,                FP_FN,               NA,             EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HET_VAR1_VAR2,   FP_ONLY,      TP_FP,             TP_ONLY,             TP_FP_FN,       EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HET_VAR1_VAR3,   NA,           NA,                TP_FP_FN,            NA,             EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HET_VAR3_VAR4,   FP_ONLY,      FP_FN,             FP_FN,               FP_FN,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HOM_VAR1,        FP_ONLY,      TP_FP,             TP_FN,               TP_ONLY,        EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HOM_VAR2,        NA,           FP_FN,             TP_FN,               FP_FN,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.HOM_VAR3,        NA,           NA,                FP_FN,               NA,             EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.NO_CALL,         EMPTY,        EMPTY,             EMPTY,               EMPTY,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.FILTERED,        EMPTY,        EMPTY,             EMPTY,               EMPTY,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.LOW_GQ,          EMPTY,        EMPTY,             EMPTY,               EMPTY,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.LOW_DP,          EMPTY,        EMPTY,             EMPTY,               EMPTY,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
+        addRow(CallState.IS_MIXED,        EMPTY,        EMPTY,             EMPTY,               EMPTY,          EMPTY,         EMPTY,        EMPTY,        EMPTY,        EMPTY);
 
         validateScheme();
     }{}

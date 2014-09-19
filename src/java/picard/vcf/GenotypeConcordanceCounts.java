@@ -149,6 +149,13 @@ public class GenotypeConcordanceCounts {
     }
 
     /**
+     * Returns the count defined by the truth state set and call state set.
+     */
+    public int getCount(final TruthState truthState, final CallState callState) {
+        return this.counts.get(new TruthAndCallStates(truthState, callState));
+    }
+
+    /**
      * Returns the sum of the all pairs of tuples defined by the truth state set and call state set.
      */
     public int getSum(final Set<TruthState> truthStateSet, final Set<CallState> callStateSet) {

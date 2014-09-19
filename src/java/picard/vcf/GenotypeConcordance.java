@@ -43,10 +43,15 @@ import picard.cmdline.CommandLineProgram;
 import picard.cmdline.Option;
 import picard.cmdline.StandardOptionDefinitions;
 import picard.cmdline.Usage;
+import picard.vcf.GenotypeConcordanceStates.*;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Calculates the concordance between genotype data for two samples in two different VCFs - one representing the truth (or reference)
@@ -295,6 +300,140 @@ public class GenotypeConcordance extends CommandLineProgram {
                 }
             }
         }
+    }
+
+    // TODO: check reference alleles are the same between truth and reference
+    // TODO: describe precedence of filtering...
+    final TruthState determineTruthState(final VariantContext ctx, final String sample, final int minGq, final int minDp) {
+        // Site level checks
+        if (ctx == null) return TruthState.HOM_REF;
+        else if (ctx.isFiltered()) return TruthState.FILTERED;
+
+        // TODO: what about getPloidy()
+
+        // Genotype level checks
+        final Genotype gt = ctx.getGenotype(sample);
+        if (gt.isNoCall())           return TruthState.NO_CALL;
+        else if (gt.isFiltered())    return TruthState.FILTERED;
+        else if ((gt.getGQ() != -1) && (gt.getGQ() < minGq)) return TruthState.LOW_GQ;
+        else if ((gt.getDP() != -1) && (gt.getDP() < minDp)) return TruthState.LOW_DP;
+        else if ((gt.isMixed())) return TruthState.IS_MIXED;
+        else if (gt.isHomRef()) return TruthState.HOM_REF;
+        else if (gt.isHomVar()) return TruthState.HOM_VAR1;
+        else if (gt.isHetNonRef()) return TruthState.HET_VAR1_VAR2;
+        else if (gt.isHet()) return TruthState.HET_REF_VAR1;
+
+        throw new IllegalStateException("Could not classify the truth variant: " + gt);
+    }
+
+    enum State {
+        REF, VAR1, VAR2, VAR3, VAR4
+    }
+
+    // TODO: check reference alleles are the same between call and truth
+    // TODO: describe precedence of filtering...
+    // Doesn't check for SNP versus Indel
+    // Requires that one of truthContext or callContext is not null
+    final TruthAndCallStates determineState(final VariantContext truthContext, final String truthSample, final VariantContext callContext, final String callSample,  final int minGq, final int minDp) {
+        TruthState truthState = null;
+        CallState callState = null;
+
+        // TODO: what about getPloidy()
+
+        Genotype truthGenotype = null, callGenotype = null;
+
+        // Site level checks
+        if (truthContext == null) truthState = TruthState.HOM_REF;
+        else if (truthContext.isFiltered()) truthState = TruthState.FILTERED;
+        else {
+            // Genotype level checks
+            truthGenotype = truthContext.getGenotype(truthSample);
+            if (truthGenotype.isNoCall())           truthState = TruthState.NO_CALL;
+            else if (truthGenotype.isFiltered())    truthState = TruthState.FILTERED;
+            else if ((truthGenotype.getGQ() != -1) && (truthGenotype.getGQ() < minGq)) truthState = TruthState.LOW_GQ;
+            else if ((truthGenotype.getDP() != -1) && (truthGenotype.getDP() < minDp)) truthState = TruthState.LOW_DP;
+            else if ((truthGenotype.isMixed())) truthState = TruthState.IS_MIXED;
+        }
+
+        // Site level checks
+        if (callContext == null) callState = CallState.HOM_REF;
+        else if (callContext.isFiltered()) callState = CallState.FILTERED;
+        else {
+            // Genotype level checks
+            callGenotype = callContext.getGenotype(callSample);
+            if (callGenotype.isNoCall())           callState = CallState.NO_CALL;
+            else if (callGenotype.isFiltered())    callState = CallState.FILTERED;
+            else if ((callGenotype.getGQ() != -1) && (callGenotype.getGQ() < minGq)) callState = CallState.LOW_GQ;
+            else if ((callGenotype.getDP() != -1) && (callGenotype.getDP() < minDp)) callState = CallState.LOW_DP;
+            else if ((callGenotype.isMixed())) callState = CallState.IS_MIXED;
+        }
+
+        final State truth1, truth2, call1, call2;
+        final List<State> states = Arrays.asList(State.VAR1, State.VAR2, State.VAR3, State.VAR4);
+        final Map<Allele, State> map = new HashMap<Allele, State>();
+        Allele a;
+
+        // initialize the reference
+        if (truthContext != null) map.put(truthContext.getReference(), State.REF);
+        map.put(callContext.getReference(), State.REF);
+
+        // Truth
+        if (null == truthState) {
+            // Truth allele #1
+            a = truthGenotype.getAllele(0);
+            if (!map.containsKey(a)) map.put(a, states.remove(0));
+            truth1 = map.get(a);
+            // Truth allele #2
+            a = truthGenotype.getAllele(1);
+            if (!map.containsKey(a)) map.put(a, states.remove(0));
+            truth2 = map.get(a);
+
+            // Truth state
+            if (truth1 == State.REF) {
+                if (truth2 == State.REF) truthState = TruthState.HOM_REF;
+                else if (truth2 == State.VAR1) truthState = TruthState.HET_REF_VAR1;
+            }
+            else if (truth1 == State.VAR1) {
+                if (truth2 == State.VAR1) truthState = TruthState.HOM_VAR1;
+                else if (truth2 == State.VAR2) truthState = TruthState.HET_VAR1_VAR2;
+            }
+            if (null == truthState) new IllegalStateException("Could not classify the truth variant: " + truthGenotype);
+        }
+
+        // Call
+        if (null == callState) {
+            // Call allele #1
+            a = callGenotype.getAllele(0);
+            if (!map.containsKey(a)) map.put(a, states.remove(0));
+            call1 = map.get(a);
+            // Call allele #2
+            a = callGenotype.getAllele(1);
+            if (!map.containsKey(a)) map.put(a, states.remove(0));
+            call2 = map.get(a);
+
+            // Call state
+            if (call1 == State.REF) {
+                if (call2 == State.REF) callState = CallState.HOM_REF;
+                else if (call2 == State.VAR1) callState = CallState.HET_REF_VAR1;
+                else if (call2 == State.VAR2) callState = CallState.HET_REF_VAR2;
+                else if (call2 == State.VAR3) callState = CallState.HET_REF_VAR3;
+            }
+            else if (call1 == State.VAR1) {
+                if (call2 == State.VAR1) callState = CallState.HOM_VAR1;
+                else if (call2 == State.VAR2) callState = CallState.HET_VAR1_VAR2;
+                else if (call2 == State.VAR3) callState = CallState.HET_VAR1_VAR3;
+            }
+            else if (call1 == State.VAR2) {
+                if (call2 == State.VAR2) callState = CallState.HOM_VAR2;
+            }
+            else if (call1 == State.VAR3) {
+                if (call2 == State.VAR3) callState = CallState.HOM_VAR3;
+                else if (call2 == State.VAR4) callState = CallState.HET_VAR3_VAR4;
+            }
+            if (null == callState) new IllegalStateException("Could not classify the call variant: " + callGenotype);
+        }
+
+        return new TruthAndCallStates(truthState, callState);
     }
 
 

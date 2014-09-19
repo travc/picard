@@ -21,11 +21,16 @@ public class GenotypeConcordanceStates {
     /**
      * These states represent the relationship between a truth genotype and the reference sequence.
      */
-    enum TruthState {
+    public enum TruthState {
         HOM_REF, // ref/ref
         HET_REF_VAR1, // ref/var1 (var1!=ref)
         HET_VAR1_VAR2, // var1/var2 (var1!=var2, var1!=ref, var2!=ref)
         HOM_VAR1, // var1/var1 (var1!=ref)
+        NO_CALL,
+        LOW_GQ,
+        LOW_DP,
+        FILTERED,
+        IS_MIXED
     }
 
     /**
@@ -42,7 +47,12 @@ public class GenotypeConcordanceStates {
         HET_VAR3_VAR4, // var3/var4, valid only for TruthStates: HET_REF_VAR1, HET_VAR1_VAR2, HOM_VAR1
         HOM_VAR1, // var1/var1, valid for all TruthStates
         HOM_VAR2, // var2/var2, valid only for TruthStates: HET_REF_VAR1, HET_VAR1_VAR2, HOM_VAR1
-        HOM_VAR3 // var3/var3, valid only for TruthStates: HET_VAR1_VAR2
+        HOM_VAR3, // var3/var3, valid only for TruthStates: HET_VAR1_VAR2
+        NO_CALL,
+        LOW_GQ,
+        LOW_DP,
+        FILTERED,
+        IS_MIXED
     }
 
     /**
