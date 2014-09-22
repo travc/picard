@@ -8,7 +8,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordSetBuilder;
 import htsjdk.samtools.util.IOUtil;
 import org.testng.Assert;
-import picard.cmdline.CommandLineProgram;
+import picard.cmdline.CommandLineProgramTest;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ import java.util.Map;
 /**
  * Abstract class for doing basic on the fly SAM file testing.
  */
-public abstract class SamFileTester {
+public abstract class SamFileTester extends CommandLineProgramTest {
 
     public static final String TEST_DATA_BASE_DIR = "testdata/picard/sam/";
     private final SAMRecordSetBuilder samRecordSetBuilder;
@@ -194,20 +194,16 @@ public abstract class SamFileTester {
 
     protected abstract void test();
 
-    protected abstract CommandLineProgram getProgram();
-
     /**
      * Sets up the basic command line arguments for input and output and runs instanceMain.
      */
     public void runTest() {
-        if (getProgram() != null) {
-            final File input = createInputFile();
+        final File input = createInputFile();
 
-            output = new File(outputDir, "output.sam");
-            args.add("INPUT=" + input.getAbsoluteFile());
-            args.add("OUTPUT=" + output.getAbsoluteFile());
-            Assert.assertEquals(getProgram().instanceMain(args.toArray(new String[args.size()])), 0);
-        }
+        output = new File(outputDir, "output.sam");
+        args.add("INPUT=" + input.getAbsoluteFile());
+        args.add("OUTPUT=" + output.getAbsoluteFile());
+        Assert.assertEquals(runPicardCommandLine(args), 0);
         test();
     }
 

@@ -17,9 +17,10 @@ import htsjdk.samtools.util.ProgressLogger;
 import htsjdk.samtools.util.SortingCollection;
 import picard.PicardException;
 import picard.cmdline.CommandLineProgram;
+import picard.cmdline.CommandLineProgramProperties;
 import picard.cmdline.Option;
 import picard.cmdline.StandardOptionDefinitions;
-import picard.cmdline.Usage;
+import picard.cmdline.programgroups.SamOrBam;
 
 import java.io.File;
 import java.util.Iterator;
@@ -31,11 +32,12 @@ import java.util.List;
  * New BAM/BAI/MD5 files are created.
  * @author Nils Homer
  */
+@CommandLineProgramProperties(
+        usage = "Reverts the original base qualities and adds the mate cigar tag to read-group BAMs.",
+        usageShort = "Reverts the original base qualities and adds the mate cigar tag to read-group BAMs",
+        programGroup = SamOrBam.class
+)
 public class RevertOriginalBaseQualitiesAndAddMateCigar extends CommandLineProgram {
-
-    @Usage
-    public String USAGE = getStandardUsagePreamble() +
-            "Reverts the original base qualities and adds the mate cigar tag to read-group BAMs.";
 
     @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="The input SAM/BAM file to revert the state of.")
     public File INPUT;
