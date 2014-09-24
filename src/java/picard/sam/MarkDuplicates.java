@@ -223,7 +223,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
 
         final SAMFileWriter out = new SAMFileWriterFactory().makeWriter(outputHeader,
                 true,
-                OUTPUT);
+                OUTPUT, REFERENCE_FASTA);
 
         // Now copy over the file while marking all the necessary indexes as duplicates
         long recordInFileIndex = 0;

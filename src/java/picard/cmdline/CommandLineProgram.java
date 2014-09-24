@@ -97,6 +97,9 @@ public abstract class CommandLineProgram {
     @Option(doc="Whether to create an MD5 digest for any BAM or FASTQ files created.  ", common=true)
     public boolean CREATE_MD5_FILE = Defaults.CREATE_MD5;
 
+    @Option(doc = "Reference fasta file.", common = true)
+    public File REFERENCE_FASTA = Defaults.REFERENCE_FASTA;
+
     private final String standardUsagePreamble = CommandLineParser.getStandardUsagePreamble(getClass());
 
     /**
