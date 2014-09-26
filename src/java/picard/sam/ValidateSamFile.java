@@ -78,11 +78,6 @@ public class ValidateSamFile extends CommandLineProgram {
             doc = "The maximum number of lines output in verbose mode")
     public Integer MAX_OUTPUT = 100;
 
-    @Option(shortName = StandardOptionDefinitions.REFERENCE_SHORT_NAME,
-            doc = "Reference sequence file, the NM tag check will be skipped if this is missing",
-            optional = true)
-    public File REFERENCE_SEQUENCE;
-
     @Option(doc = "If true, only report errors and ignore warnings.")
     public boolean IGNORE_WARNINGS = false;
 
@@ -128,9 +123,9 @@ public class ValidateSamFile extends CommandLineProgram {
 
         boolean result;
 
-        final SamReaderFactory factory = SamReaderFactory.makeDefault(REFERENCE_FASTA)
+        final SamReaderFactory factory = SamReaderFactory.makeDefault().referenceSequence(REFERENCE_SEQUENCE)
                 .validationStringency(ValidationStringency.SILENT)
-                .enable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS).referenceFasta(REFERENCE_FASTA);
+                .enable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS);
         final SamReader samReader = factory.open(INPUT);
 
         if (samReader.type() != SamReader.Type.BAM_TYPE) VALIDATE_INDEX = false;

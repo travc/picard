@@ -29,7 +29,8 @@ public class CollectMultipleMetrics extends CommandLineProgram {
 
     public static enum Program implements ProgramInterface {
         CollectAlignmentSummaryMetrics {
-            @Override public SinglePassSamProgram makeInstance(final String outbase) {
+            @Override
+            public SinglePassSamProgram makeInstance(final String outbase) {
                 final CollectAlignmentSummaryMetrics program = new CollectAlignmentSummaryMetrics();
                 program.OUTPUT = new File(outbase + ".alignment_summary_metrics");
                 return program;
@@ -39,7 +40,7 @@ public class CollectMultipleMetrics extends CommandLineProgram {
             @Override
             public SinglePassSamProgram makeInstance(final String outbase) {
                 final CollectInsertSizeMetrics program = new CollectInsertSizeMetrics();
-                program.OUTPUT         = new File(outbase + ".insert_size_metrics");
+                program.OUTPUT = new File(outbase + ".insert_size_metrics");
                 program.Histogram_FILE = new File(outbase + ".insert_size_Histogram.pdf");
                 return program;
             }
@@ -47,7 +48,7 @@ public class CollectMultipleMetrics extends CommandLineProgram {
         QualityScoreDistribution {
             public SinglePassSamProgram makeInstance(final String outbase) {
                 final QualityScoreDistribution program = new QualityScoreDistribution();
-                program.OUTPUT       = new File(outbase + ".quality_distribution_metrics");
+                program.OUTPUT = new File(outbase + ".quality_distribution_metrics");
                 program.CHART_OUTPUT = new File(outbase + ".quality_distribution.pdf");
                 return program;
             }
@@ -55,7 +56,7 @@ public class CollectMultipleMetrics extends CommandLineProgram {
         MeanQualityByCycle {
             public SinglePassSamProgram makeInstance(final String outbase) {
                 final MeanQualityByCycle program = new MeanQualityByCycle();
-                program.OUTPUT       = new File(outbase + ".quality_by_cycle_metrics");
+                program.OUTPUT = new File(outbase + ".quality_by_cycle_metrics");
                 program.CHART_OUTPUT = new File(outbase + ".quality_by_cycle.pdf");
                 return program;
             }
@@ -63,7 +64,7 @@ public class CollectMultipleMetrics extends CommandLineProgram {
         CollectBaseDistributionByCycle {
             public SinglePassSamProgram makeInstance(final String outbase) {
                 final CollectBaseDistributionByCycle program = new CollectBaseDistributionByCycle();
-                program.OUTPUT       = new File(outbase + ".base_distribution_by_cycle_metrics");
+                program.OUTPUT = new File(outbase + ".base_distribution_by_cycle_metrics");
                 program.CHART_OUTPUT = new File(outbase + ".base_distribution_by_cycle.pdf");
                 return program;
             }
@@ -73,27 +74,25 @@ public class CollectMultipleMetrics extends CommandLineProgram {
 
     @Usage
     public final String USAGE = getStandardUsagePreamble() +
-			"Takes an input BAM and reference sequence and runs one or more Picard " +
+            "Takes an input BAM and reference sequence and runs one or more Picard " +
             "metrics modules at the same time to cut down on I/O. Currently all programs are run with " +
             "default options and fixed output extesions, but this may become more flexible in future.";
 
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME, doc="Input SAM or BAM file.")
+    @Option(shortName = StandardOptionDefinitions.INPUT_SHORT_NAME, doc = "Input SAM or BAM file.")
     public File INPUT;
 
-    @Option(shortName=StandardOptionDefinitions.REFERENCE_SHORT_NAME, doc="Reference sequence fasta.", optional=true)
-    public File REFERENCE_SEQUENCE;
 
-    @Option(doc="If true (default), then the sort order in the header file will be ignored.",
+    @Option(doc = "If true (default), then the sort order in the header file will be ignored.",
             shortName = StandardOptionDefinitions.ASSUME_SORTED_SHORT_NAME)
     public boolean ASSUME_SORTED = true;
 
-    @Option(doc="Stop after processing N reads, mainly for debugging.")
+    @Option(doc = "Stop after processing N reads, mainly for debugging.")
     public int STOP_AFTER = 0;
 
-    @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="Base name of output files.")
+    @Option(shortName = StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc = "Base name of output files.")
     public String OUTPUT;
 
-    @Option(doc="List of metrics programs to apply during the pass through the SAM file.")
+    @Option(doc = "List of metrics programs to apply during the pass through the SAM file.")
     public List<Program> PROGRAM = CollectionUtil.makeList(Program.values());
 
     /**
@@ -122,9 +121,10 @@ public class CollectMultipleMetrics extends CommandLineProgram {
         this.programsToRun = programsToRun;
     }
 
-    @Override public int doWork() {
+    @Override
+    public int doWork() {
         if (OUTPUT.endsWith(".")) {
-            OUTPUT = OUTPUT.substring(0, OUTPUT.length()-1);
+            OUTPUT = OUTPUT.substring(0, OUTPUT.length() - 1);
         }
 
         final List<SinglePassSamProgram> programs = new ArrayList<SinglePassSamProgram>();
@@ -135,7 +135,7 @@ public class CollectMultipleMetrics extends CommandLineProgram {
             // to just set them anyway
             instance.INPUT = INPUT;
             instance.REFERENCE_SEQUENCE = REFERENCE_SEQUENCE;
-            instance.REFERENCE_FASTA = REFERENCE_FASTA;
+            instance.REFERENCE_SEQUENCE = REFERENCE_SEQUENCE;
 
             instance.setDefaultHeaders(getDefaultHeaders());
 

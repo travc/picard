@@ -55,16 +55,16 @@ public class BuildBamIndex extends CommandLineProgram {
     @Usage
     public String USAGE = getStandardUsagePreamble() + "Generates a BAM index (.bai) file.";
 
-    @Option(shortName= StandardOptionDefinitions.INPUT_SHORT_NAME,
-            doc="A BAM file or URL to process. Must be sorted in coordinate order.")
+    @Option(shortName = StandardOptionDefinitions.INPUT_SHORT_NAME,
+            doc = "A BAM file or URL to process. Must be sorted in coordinate order.")
     public String INPUT;
 
     URL inputUrl = null;   // INPUT as URL
     File inputFile = null; // INPUT as File, if it can't be interpreted as a valid URL
 
-    @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME,
-            doc="The BAM index file. Defaults to x.bai if INPUT is x.bam, otherwise INPUT.bai.\n" +
-                "If INPUT is a URL and OUTPUT is unspecified, defaults to a file in the current directory.", optional=true)
+    @Option(shortName = StandardOptionDefinitions.OUTPUT_SHORT_NAME,
+            doc = "The BAM index file. Defaults to x.bai if INPUT is x.bam, otherwise INPUT.bai.\n" +
+                    "If INPUT is a URL and OUTPUT is unspecified, defaults to a file in the current directory.", optional = true)
     public File OUTPUT;
 
     /** Stock main method for a command line program. */
@@ -112,11 +112,11 @@ public class BuildBamIndex extends CommandLineProgram {
 
         if (inputUrl != null) {
             // remote input
-            bam = SamReaderFactory.makeDefault(REFERENCE_FASTA).disable(SamReaderFactory.Option.EAGERLY_DECODE).open(SamInputResource.of(inputUrl));
+            bam = SamReaderFactory.makeDefault().referenceSequence(REFERENCE_SEQUENCE).disable(SamReaderFactory.Option.EAGERLY_DECODE).open(SamInputResource.of(inputUrl));
         } else {
             // input from a normal file
             IOUtil.assertFileIsReadable(inputFile);
-            bam = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(inputFile);
+            bam = SamReaderFactory.makeDefault().referenceSequence(REFERENCE_SEQUENCE).open(inputFile);
         }
 
         if (bam.type() != SamReader.Type.BAM_TYPE) {

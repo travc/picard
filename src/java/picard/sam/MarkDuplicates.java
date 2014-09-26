@@ -76,66 +76,66 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
 
     @Usage
     public final String USAGE =
-		    CommandLineParser.getStandardUsagePreamble(getClass()) +
-            "Examines aligned records in the supplied SAM or BAM file to locate duplicate molecules. " +
-            "All records are then written to the output file with the duplicate records flagged.";
+            CommandLineParser.getStandardUsagePreamble(getClass()) +
+                    "Examines aligned records in the supplied SAM or BAM file to locate duplicate molecules. " +
+                    "All records are then written to the output file with the duplicate records flagged.";
 
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,
-		    doc="One or more input SAM or BAM files to analyze. Must be coordinate sorted.  May not be a stream because file is read twice.")
+    @Option(shortName = StandardOptionDefinitions.INPUT_SHORT_NAME,
+            doc = "One or more input SAM or BAM files to analyze. Must be coordinate sorted.  May not be a stream because file is read twice.")
     public List<File> INPUT;
 
-    @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME,
-		    doc="The output file to write marked records to")
+    @Option(shortName = StandardOptionDefinitions.OUTPUT_SHORT_NAME,
+            doc = "The output file to write marked records to")
     public File OUTPUT;
 
-    @Option(shortName="M",
-		    doc="File to write duplication metrics to")
+    @Option(shortName = "M",
+            doc = "File to write duplication metrics to")
     public File METRICS_FILE;
 
-    @Option(shortName=StandardOptionDefinitions.PROGRAM_RECORD_ID_SHORT_NAME,
-            doc="The program record ID for the @PG record(s) created by this program. Set to null to disable " +
-                "PG record creation.  This string may have a suffix appended to avoid collision with other " +
-	            "program record IDs.",
-            optional=true)
+    @Option(shortName = StandardOptionDefinitions.PROGRAM_RECORD_ID_SHORT_NAME,
+            doc = "The program record ID for the @PG record(s) created by this program. Set to null to disable " +
+                    "PG record creation.  This string may have a suffix appended to avoid collision with other " +
+                    "program record IDs.",
+            optional = true)
     public String PROGRAM_RECORD_ID = "MarkDuplicates";
 
-    @Option(shortName="PG_VERSION",
-            doc="Value of VN tag of PG record to be created. If not specified, the version will be detected automatically.",
-            optional=true)
+    @Option(shortName = "PG_VERSION",
+            doc = "Value of VN tag of PG record to be created. If not specified, the version will be detected automatically.",
+            optional = true)
     public String PROGRAM_GROUP_VERSION;
 
-    @Option(shortName="PG_COMMAND",
-            doc="Value of CL tag of PG record to be created. If not supplied the command line will be detected automatically.",
-            optional=true)
+    @Option(shortName = "PG_COMMAND",
+            doc = "Value of CL tag of PG record to be created. If not supplied the command line will be detected automatically.",
+            optional = true)
     public String PROGRAM_GROUP_COMMAND_LINE;
 
-    @Option(shortName="PG_NAME",
-		    doc="Value of PN tag of PG record to be created.")
+    @Option(shortName = "PG_NAME",
+            doc = "Value of PN tag of PG record to be created.")
     public String PROGRAM_GROUP_NAME = "MarkDuplicates";
 
-    @Option(shortName="CO",
-		    doc="Comment(s) to include in the output file's header.",
-		    optional=true)
+    @Option(shortName = "CO",
+            doc = "Comment(s) to include in the output file's header.",
+            optional = true)
     public List<String> COMMENT = new ArrayList<String>();
 
-    @Option(doc="If true do not write duplicates to the output file instead of writing them with appropriate flags set.")
+    @Option(doc = "If true do not write duplicates to the output file instead of writing them with appropriate flags set.")
     public boolean REMOVE_DUPLICATES = false;
 
-    @Option(shortName=StandardOptionDefinitions.ASSUME_SORTED_SHORT_NAME,
-		    doc="If true, assume that the input file is coordinate sorted even if the header says otherwise.")
+    @Option(shortName = StandardOptionDefinitions.ASSUME_SORTED_SHORT_NAME,
+            doc = "If true, assume that the input file is coordinate sorted even if the header says otherwise.")
     public boolean ASSUME_SORTED = false;
 
-    @Option(shortName="MAX_SEQS",
-		    doc="This option is obsolete. ReadEnds will always be spilled to disk.")
+    @Option(shortName = "MAX_SEQS",
+            doc = "This option is obsolete. ReadEnds will always be spilled to disk.")
     public int MAX_SEQUENCES_FOR_DISK_READ_ENDS_MAP = 50000;
 
-    @Option(shortName="MAX_FILE_HANDLES",
-		    doc="Maximum number of file handles to keep open when spilling read ends to disk. " +
-            "Set this number a little lower than the per-process maximum number of file that may be open. " +
-            "This number can be found by executing the 'ulimit -n' command on a Unix system.")
+    @Option(shortName = "MAX_FILE_HANDLES",
+            doc = "Maximum number of file handles to keep open when spilling read ends to disk. " +
+                    "Set this number a little lower than the per-process maximum number of file that may be open. " +
+                    "This number can be found by executing the 'ulimit -n' command on a Unix system.")
     public int MAX_FILE_HANDLES_FOR_READ_ENDS_MAP = 8000;
 
-    @Option(doc="This number, plus the maximum RAM available to the JVM, determine the memory footprint used by " +
+    @Option(doc = "This number, plus the maximum RAM available to the JVM, determine the memory footprint used by " +
             "some of the sorting collections.  If you are running out of memory, try reducing this number.")
     public double SORTING_COLLECTION_SIZE_RATIO = 0.25;
 
@@ -144,7 +144,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
     private SortingLongCollection duplicateIndexes;
     private int numDuplicateIndices = 0;
 
-    final private Map<String,Short> libraryIds = new HashMap<String,Short>();
+    final private Map<String, Short> libraryIds = new HashMap<String, Short>();
     private short nextLibraryId = 1;
 
     // Variables used for optical duplicate detection and tracking
@@ -187,7 +187,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
             log.info("Found " + numOpticalDuplicates() + " optical duplicate clusters.");
         }
 
-        final Map<String,DuplicationMetrics> metricsByLibrary = new HashMap<String,DuplicationMetrics>();
+        final Map<String, DuplicationMetrics> metricsByLibrary = new HashMap<String, DuplicationMetrics>();
         final SamHeaderAndIterator headerAndIterator = openInputs();
         final SAMFileHeader header = headerAndIterator.header;
 
@@ -223,13 +223,13 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
 
         final SAMFileWriter out = new SAMFileWriterFactory().makeWriter(outputHeader,
                 true,
-                OUTPUT, REFERENCE_FASTA);
+                OUTPUT, REFERENCE_SEQUENCE);
 
         // Now copy over the file while marking all the necessary indexes as duplicates
         long recordInFileIndex = 0;
-        long nextDuplicateIndex = (this.duplicateIndexes.hasNext() ? this.duplicateIndexes.next(): -1);
+        long nextDuplicateIndex = (this.duplicateIndexes.hasNext() ? this.duplicateIndexes.next() : -1);
 
-        for(final SAMReadGroupRecord readGroup : header.getReadGroups()) {
+        for (final SAMReadGroupRecord readGroup : header.getReadGroups()) {
             final String library = readGroup.getLibrary();
             DuplicationMetrics metrics = metricsByLibrary.get(library);
             if (metrics == null) {
@@ -255,11 +255,9 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
                 // First bring the simple metrics up to date
                 if (rec.getReadUnmappedFlag()) {
                     ++metrics.UNMAPPED_READS;
-                }
-                else if (!rec.getReadPairedFlag() || rec.getMateUnmappedFlag()) {
+                } else if (!rec.getReadPairedFlag() || rec.getMateUnmappedFlag()) {
                     ++metrics.UNPAIRED_READS_EXAMINED;
-                }
-                else {
+                } else {
                     ++metrics.READ_PAIRS_EXAMINED; // will need to be divided by 2 at the end
                 }
 
@@ -270,8 +268,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
                     // Update the duplication metrics
                     if (!rec.getReadPairedFlag() || rec.getMateUnmappedFlag()) {
                         ++metrics.UNPAIRED_READ_DUPLICATES;
-                    }
-                    else {
+                    } else {
                         ++metrics.READ_PAIR_DUPLICATES;// will need to be divided by 2 at the end
                     }
 
@@ -282,8 +279,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
                         // Only happens once we've marked all the duplicates
                         nextDuplicateIndex = -1;
                     }
-                }
-                else {
+                } else {
                     rec.setDuplicateReadFlag(false);
                 }
             }
@@ -291,8 +287,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
 
             if (this.REMOVE_DUPLICATES && rec.getDuplicateReadFlag()) {
                 // do nothing
-            }
-            else {
+            } else {
                 if (PROGRAM_RECORD_ID != null) {
                     rec.setAttribute(SAMTag.PG.name(), chainedPgIds.get(rec.getStringAttribute(SAMTag.PG.name())));
                 }
@@ -309,8 +304,8 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
 
 
         // Write out the metrics
-        final MetricsFile<DuplicationMetrics,Double> file = getMetricsFile();
-        for (final Map.Entry<String,DuplicationMetrics> entry : metricsByLibrary.entrySet()) {
+        final MetricsFile<DuplicationMetrics, Double> file = getMetricsFile();
+        for (final Map.Entry<String, DuplicationMetrics> entry : metricsByLibrary.entrySet()) {
             final String libraryName = entry.getKey();
             final DuplicationMetrics metrics = entry.getValue();
 
@@ -363,7 +358,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
         final List<SamReader> readers = new ArrayList<SamReader>(INPUT.size());
 
         for (final File f : INPUT) {
-            final SamReader reader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(f);
+            final SamReader reader = SamReaderFactory.makeDefault().referenceSequence(REFERENCE_SEQUENCE).open(f);
             final SAMFileHeader header = reader.getFileHeader();
 
             if (!ASSUME_SORTED && header.getSortOrder() != SortOrder.coordinate) {
@@ -376,8 +371,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
 
         if (headers.size() == 1) {
             return new SamHeaderAndIterator(headers.get(0), readers.get(0).iterator());
-        }
-        else {
+        } else {
             final SamFileHeaderMerger headerMerger = new SamFileHeaderMerger(SortOrder.coordinate, headers, false);
             final MergingSamRecordIterator iterator = new MergingSamRecordIterator(headerMerger, readers, ASSUME_SORTED);
             return new SamHeaderAndIterator(headerMerger.getMergedHeader(), iterator);
@@ -402,16 +396,16 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
         log.info("Will retain up to " + maxInMemory + " data points before spilling to disk.");
 
         this.pairSort = SortingCollection.newInstance(ReadEnds.class,
-                                                      new ReadEndsCodec(),
-                                                      new ReadEndsComparator(),
-                                                      maxInMemory,
-                                                      TMP_DIR);
+                new ReadEndsCodec(),
+                new ReadEndsComparator(),
+                maxInMemory,
+                TMP_DIR);
 
         this.fragSort = SortingCollection.newInstance(ReadEnds.class,
-                                                      new ReadEndsCodec(),
-                                                      new ReadEndsComparator(),
-                                                      maxInMemory,
-                                                      TMP_DIR);
+                new ReadEndsCodec(),
+                new ReadEndsComparator(),
+                maxInMemory,
+                TMP_DIR);
 
         final SamHeaderAndIterator headerAndIterator = openInputs();
         final SAMFileHeader header = headerAndIterator.header;
@@ -435,8 +429,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
                     break;
                 }
                 // If this read is unmapped but sorted with the mapped reads, just skip it.
-            }
-            else if (!rec.isSecondaryOrSupplementary()){
+            } else if (!rec.isSecondaryOrSupplementary()) {
                 final ReadEnds fragmentEnd = buildReadEnds(header, index, rec);
                 this.fragSort.add(fragmentEnd);
 
@@ -448,29 +441,27 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
                     if (pairedEnds == null) {
                         pairedEnds = buildReadEnds(header, index, rec);
                         tmp.put(pairedEnds.read2Sequence, key, pairedEnds);
-                    }
-                    else {
+                    } else {
                         final int sequence = fragmentEnd.read1Sequence;
                         final int coordinate = fragmentEnd.read1Coordinate;
 
                         // If the second read is actually later, just add the second read data, else flip the reads
                         if (sequence > pairedEnds.read1Sequence ||
                                 (sequence == pairedEnds.read1Sequence && coordinate >= pairedEnds.read1Coordinate)) {
-                            pairedEnds.read2Sequence    = sequence;
-                            pairedEnds.read2Coordinate  = coordinate;
+                            pairedEnds.read2Sequence = sequence;
+                            pairedEnds.read2Coordinate = coordinate;
                             pairedEnds.read2IndexInFile = index;
                             pairedEnds.orientation = getOrientationByte(pairedEnds.orientation == ReadEnds.R,
-                                                                        rec.getReadNegativeStrandFlag());
-                        }
-                        else {
-                            pairedEnds.read2Sequence    = pairedEnds.read1Sequence;
-                            pairedEnds.read2Coordinate  = pairedEnds.read1Coordinate;
+                                    rec.getReadNegativeStrandFlag());
+                        } else {
+                            pairedEnds.read2Sequence = pairedEnds.read1Sequence;
+                            pairedEnds.read2Coordinate = pairedEnds.read1Coordinate;
                             pairedEnds.read2IndexInFile = pairedEnds.read1IndexInFile;
-                            pairedEnds.read1Sequence    = sequence;
-                            pairedEnds.read1Coordinate  = coordinate;
+                            pairedEnds.read1Sequence = sequence;
+                            pairedEnds.read1Coordinate = coordinate;
                             pairedEnds.read1IndexInFile = index;
                             pairedEnds.orientation = getOrientationByte(rec.getReadNegativeStrandFlag(),
-                                                                        pairedEnds.orientation == ReadEnds.R);
+                                    pairedEnds.orientation == ReadEnds.R);
                         }
 
                         pairedEnds.score += getScore(rec);
@@ -497,8 +488,8 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
     /** Builds a read ends object that represents a single read. */
     private ReadEnds buildReadEnds(final SAMFileHeader header, final long index, final SAMRecord rec) {
         final ReadEnds ends = new ReadEnds();
-        ends.read1Sequence    = rec.getReferenceIndex();
-        ends.read1Coordinate  = rec.getReadNegativeStrandFlag() ? rec.getUnclippedEnd() : rec.getUnclippedStart();
+        ends.read1Sequence = rec.getReferenceIndex();
+        ends.read1Coordinate = rec.getReadNegativeStrandFlag() ? rec.getUnclippedEnd() : rec.getUnclippedStart();
         ends.orientation = rec.getReadNegativeStrandFlag() ? ReadEnds.R : ReadEnds.F;
         ends.read1IndexInFile = index;
         ends.score = getScore(rec);
@@ -565,15 +556,13 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
      */
     private byte getOrientationByte(final boolean read1NegativeStrand, final boolean read2NegativeStrand) {
         if (read1NegativeStrand) {
-            if (read2NegativeStrand)  return ReadEnds.RR;
+            if (read2NegativeStrand) return ReadEnds.RR;
             else return ReadEnds.RF;
-        }
-        else {
-            if (read2NegativeStrand)  return ReadEnds.FR;
+        } else {
+            if (read2NegativeStrand) return ReadEnds.FR;
             else return ReadEnds.FF;
         }
     }
-
 
 
     /** Calculates a score for the read which is the sum of scores over Q20. */
@@ -595,12 +584,12 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
     private void generateDuplicateIndexes() {
         // Keep this number from getting too large even if there is a huge heap.
         final int maxInMemory = (int) Math.min((Runtime.getRuntime().maxMemory() * 0.25) / SortingLongCollection.SIZEOF,
-                (double)(Integer.MAX_VALUE - 5));
+                (double) (Integer.MAX_VALUE - 5));
         log.info("Will retain up to " + maxInMemory + " duplicate indices before spilling to disk.");
         this.duplicateIndexes = new SortingLongCollection(maxInMemory, TMP_DIR.toArray(new File[TMP_DIR.size()]));
 
         ReadEnds firstOfNextChunk = null;
-        final List<ReadEnds> nextChunk  = new ArrayList<ReadEnds>(200);
+        final List<ReadEnds> nextChunk = new ArrayList<ReadEnds>(200);
 
         // First just do the pairs
         log.info("Traversing read pair information and detecting duplicates.");
@@ -608,11 +597,9 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
             if (firstOfNextChunk == null) {
                 firstOfNextChunk = next;
                 nextChunk.add(firstOfNextChunk);
-            }
-            else if (areComparableForDuplicates(firstOfNextChunk, next, true)) {
+            } else if (areComparableForDuplicates(firstOfNextChunk, next, true)) {
                 nextChunk.add(next);
-            }
-            else {
+            } else {
                 if (nextChunk.size() > 1) {
                     markDuplicatePairs(nextChunk);
                 }
@@ -636,8 +623,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
                 nextChunk.add(next);
                 containsPairs = containsPairs || next.isPaired();
                 containsFrags = containsFrags || !next.isPaired();
-            }
-            else {
+            } else {
                 if (nextChunk.size() > 1 && containsFrags) {
                     markDuplicateFragments(nextChunk, containsPairs);
                 }
@@ -658,14 +644,14 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
     }
 
     private boolean areComparableForDuplicates(final ReadEnds lhs, final ReadEnds rhs, final boolean compareRead2) {
-        boolean retval =  lhs.libraryId       == rhs.libraryId &&
-                          lhs.read1Sequence   == rhs.read1Sequence &&
-                          lhs.read1Coordinate == rhs.read1Coordinate &&
-                          lhs.orientation     == rhs.orientation;
+        boolean retval = lhs.libraryId == rhs.libraryId &&
+                lhs.read1Sequence == rhs.read1Sequence &&
+                lhs.read1Coordinate == rhs.read1Coordinate &&
+                lhs.orientation == rhs.orientation;
 
         if (retval && compareRead2) {
-            retval = lhs.read2Sequence   == rhs.read2Sequence &&
-                     lhs.read2Coordinate == rhs.read2Coordinate;
+            retval = lhs.read2Sequence == rhs.read2Sequence &&
+                    lhs.read2Coordinate == rhs.read2Coordinate;
         }
 
         return retval;
@@ -713,7 +699,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
         final boolean[] opticalDuplicateFlags = findOpticalDuplicates(list, OPTICAL_DUPLICATE_PIXEL_DISTANCE);
 
         int opticalDuplicates = 0;
-        for (final boolean b: opticalDuplicateFlags) if (b) ++opticalDuplicates;
+        for (final boolean b : opticalDuplicateFlags) if (b) ++opticalDuplicates;
         if (opticalDuplicates > 0) {
             this.opticalDupesByLibraryId.increment(list.get(0).libraryId, opticalDuplicates);
         }
@@ -730,8 +716,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
             for (final ReadEnds end : list) {
                 if (!end.isPaired()) addIndexAsDuplicate(end.read1IndexInFile);
             }
-        }
-        else {
+        } else {
             short maxScore = 0;
             ReadEnds best = null;
             for (final ReadEnds end : list) {
@@ -756,7 +741,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
             if (retval == 0) retval = lhs.read1Sequence - rhs.read1Sequence;
             if (retval == 0) retval = lhs.read1Coordinate - rhs.read1Coordinate;
             if (retval == 0) retval = lhs.orientation - rhs.orientation;
-            if (retval == 0) retval = lhs.read2Sequence   - rhs.read2Sequence;
+            if (retval == 0) retval = lhs.read2Sequence - rhs.read2Sequence;
             if (retval == 0) retval = lhs.read2Coordinate - rhs.read2Coordinate;
             if (retval == 0) retval = (int) (lhs.read1IndexInFile - rhs.read1IndexInFile);
             if (retval == 0) retval = (int) (lhs.read2IndexInFile - rhs.read2IndexInFile);
@@ -778,7 +763,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
         }
 
         String getNonCollidingId(final String recordId) {
-            if(!idsThatAreAlreadyTaken.contains(recordId)) {
+            if (!idsThatAreAlreadyTaken.contains(recordId)) {
                 // don't remap 1st record. If there are more records
                 // with this id, they will be remapped in the 'else'.
                 idsThatAreAlreadyTaken.add(recordId);
@@ -790,9 +775,10 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
                 // our old process of just counting from 0 upward and adding that to the previous id led to 1000s of
                 // calls idsThatAreAlreadyTaken.contains() just to resolve 1 collision when merging 1000s of similarly
                 // processed bams.
-                while(idsThatAreAlreadyTaken.contains(newId = recordId + "." + SamFileHeaderMerger.positiveFourDigitBase36Str(recordCounter++)));
+                while (idsThatAreAlreadyTaken.contains(newId = recordId + "." + SamFileHeaderMerger.positiveFourDigitBase36Str(recordCounter++)))
+                    ;
 
-                idsThatAreAlreadyTaken.add( newId );
+                idsThatAreAlreadyTaken.add(newId);
                 return newId;
             }
 

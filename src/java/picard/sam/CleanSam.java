@@ -69,7 +69,7 @@ public class CleanSam extends CommandLineProgram {
     protected int doWork() {
         IOUtil.assertFileIsReadable(INPUT);
         IOUtil.assertFileIsWritable(OUTPUT);
-        final SamReaderFactory factory = SamReaderFactory.makeDefault(REFERENCE_FASTA);
+        final SamReaderFactory factory = SamReaderFactory.makeDefault().referenceSequence(REFERENCE_SEQUENCE);
         if (VALIDATION_STRINGENCY == ValidationStringency.STRICT) {
             factory.validationStringency(ValidationStringency.LENIENT);
         }

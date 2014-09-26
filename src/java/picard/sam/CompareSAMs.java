@@ -44,17 +44,17 @@ import java.util.Map;
 /**
  * Rudimentary SAM comparer.  Compares headers, and if headers are compatible enough, compares SAMRecords,
  * looking only at basic alignment info.  Summarizes the number of alignments that match, mismatch, are missing, etc.
-
+ *
  * @author alecw@broadinstitute.org
  */
 public class CompareSAMs extends CommandLineProgram {
 
     @Usage
     public final String USAGE = "USAGE: CompareSAMS <SAMFile1> <SAMFile2>\n" +
-        "Compares the headers of the two input SAM or BAM files, and, if possible, the SAMRecords. " +
-        "For SAMRecords, compares only the readUnmapped flag, reference name, start position and strand. " +
-        "Reports the number of SAMRecords that match, differ in alignment, are mapped in only one input, " +
-        "or are missing in one of the files";
+            "Compares the headers of the two input SAM or BAM files, and, if possible, the SAMRecords. " +
+            "For SAMRecords, compares only the readUnmapped flag, reference name, start position and strand. " +
+            "Reports the number of SAMRecords that match, differ in alignment, are mapped in only one input, " +
+            "or are missing in one of the files";
 
     @PositionalArguments(minElements = 2, maxElements = 2)
     public List<File> samFiles;
@@ -70,7 +70,7 @@ public class CompareSAMs extends CommandLineProgram {
     private int missingRight = 0;
     private boolean areEqual;
 
-   public static void main(String[] argv) {
+    public static void main(String[] argv) {
         new CompareSAMs().instanceMainWithExit(argv);
     }
 
@@ -83,7 +83,7 @@ public class CompareSAMs extends CommandLineProgram {
     @Override
     protected int doWork() {
         for (int i = 0; i < samFiles.size(); ++i) {
-            samReaders[i] = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(samFiles.get(i));
+            samReaders[i] = SamReaderFactory.makeDefault().referenceSequence(REFERENCE_SEQUENCE).open(samFiles.get(i));
         }
         areEqual = compareHeaders();
         areEqual = compareAlignments() && areEqual;
@@ -146,7 +146,7 @@ public class CompareSAMs extends CommandLineProgram {
             if (!itRight.hasCurrent()) {
                 // Exhausted right side.  See if any of the remaining left reads match
                 // any of the saved right reads.
-                for( ; itLeft.hasCurrent(); itLeft.advance()) {
+                for (; itLeft.hasCurrent(); itLeft.advance()) {
                     final SAMRecord left = itLeft.getCurrent();
                     final SAMRecord right = rightUnmatched.remove(left.getReadName());
                     if (right == null) {
@@ -179,7 +179,7 @@ public class CompareSAMs extends CommandLineProgram {
             // For each right read that has the same coordinate as the current left reads,
             // see if there is a matching left read.  If so, process and discard.  If not,
             // save the right read for later.
-            for (;itRight.hasCurrent() && compareAlignmentCoordinates(left, itRight.getCurrent()) == 0; itRight.advance()) {
+            for (; itRight.hasCurrent() && compareAlignmentCoordinates(left, itRight.getCurrent()) == 0; itRight.advance()) {
                 final SAMRecord right = itRight.getCurrent();
                 final SAMRecord matchingLeft = leftCurrentCoordinate.remove(right.getReadName());
                 if (matchingLeft != null) {
@@ -196,7 +196,7 @@ public class CompareSAMs extends CommandLineProgram {
         }
         // The left iterator has been exhausted.  See if any of the remaining right reads
         // match any of the saved left reads.
-        for( ; itRight.hasCurrent(); itRight.advance()) {
+        for (; itRight.hasCurrent(); itRight.advance()) {
             final SAMRecord right = itRight.getCurrent();
             final SAMRecord left = leftUnmatched.remove(right.getReadName());
             if (left != null) {
@@ -386,7 +386,7 @@ public class CompareSAMs extends CommandLineProgram {
         boolean ret = compareValues(programRecord1.getProgramGroupId(), programRecord2.getProgramGroupId(),
                 "Program Name");
         final String[] attributes = {"VN", "CL"};
-        for (final String attribute: attributes) {
+        for (final String attribute : attributes) {
             ret = compareValues(programRecord1.getAttribute(attribute), programRecord2.getAttribute(attribute),
                     attribute + " Program Record attribute") && ret;
         }
@@ -416,7 +416,7 @@ public class CompareSAMs extends CommandLineProgram {
         final String[] attributes = {"DS", "PU", "PI", "CN", "DT", "PL"};
         for (final String attribute : attributes) {
             ret = compareValues(samReadGroupRecord1.getAttribute(attribute), samReadGroupRecord2.getAttribute(attribute),
-                attribute + " for read group " + samReadGroupRecord1.getReadGroupId()) && ret;
+                    attribute + " for read group " + samReadGroupRecord1.getReadGroupId()) && ret;
         }
         return ret;
     }
@@ -430,7 +430,7 @@ public class CompareSAMs extends CommandLineProgram {
         }
         boolean ret = true;
         for (int i = 0; i < s1.size(); ++i) {
-            ret = compareSequenceRecord(s1.get(i), s2.get(i), i+1) && ret;
+            ret = compareSequenceRecord(s1.get(i), s2.get(i), i + 1) && ret;
         }
         return ret;
     }
@@ -478,6 +478,7 @@ public class CompareSAMs extends CommandLineProgram {
         System.out.println(samFiles.get(0) + ": " + s1);
         System.out.println(samFiles.get(1) + ": " + s2);
     }
+
     private void reportDifference(Object o1, Object o2, final String label) {
         if (o1 == null) {
             o1 = "null";

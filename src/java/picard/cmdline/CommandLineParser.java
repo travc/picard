@@ -302,7 +302,7 @@ public class CommandLineParser {
                 "unrecognized options are ignored.  " + "A single-valued option set in an options file may be overridden " +
                 "by a subsequent command-line option.  " +
                 "A line starting with '#' is considered a comment.",
-                false, true, 0, Integer.MAX_VALUE, null, true, new String[0]);
+                      false, true, false, 0, Integer.MAX_VALUE, null, true, new String[0]);
             printOptionUsage(stream, optionsFileOptionDefinition);
         }
 
@@ -859,7 +859,7 @@ public class CommandLineParser {
                     field.getName(),
                     optionAnnotation.shortName(),
                     optionAnnotation.doc(), optionAnnotation.optional() || (field.get(callerOptions) != null),
-                    isCollection, optionAnnotation.minElements(),
+                    optionAnnotation.overridable(), isCollection, optionAnnotation.minElements(),
                     optionAnnotation.maxElements(), field.get(callerOptions),  optionAnnotation.common(),
                     optionAnnotation.mutex());
 
@@ -869,12 +869,12 @@ public class CommandLineParser {
                     mutextOptionDef.mutuallyExclusive.add(field.getName());
                 }
             }
-            if (optionMap.containsKey(optionDefinition.name)) {
-                throw new CommandLineParserDefinitionException(optionDefinition.name + " has already been used");
+            if (!optionDefinition.overridable && optionMap.containsKey(optionDefinition.name)) {
+                throw new CommandLineParserDefinitionException(optionDefinition.name + " has already been used.");
             }
             optionMap.put(optionDefinition.name, optionDefinition);
             if (optionDefinition.shortName.length() > 0) {
-                if (optionMap.containsKey(optionDefinition.shortName)) {
+                if (!optionDefinition.overridable && optionMap.containsKey(optionDefinition.shortName)) {
                     throw new CommandLineParserDefinitionException(optionDefinition.shortName +
                             " has already been used");
                 }
@@ -1061,6 +1061,7 @@ public class CommandLineParser {
         final String shortName;
         final String doc;
         final boolean optional;
+        final boolean overridable;
         final boolean isCollection;
         final int minElements;
         final int maxElements;
@@ -1072,7 +1073,7 @@ public class CommandLineParser {
         final Set<String> mutuallyExclusive;
 
         private OptionDefinition(final Field field, final String name, final String shortName, final String doc,
-                                 final boolean optional, final boolean collection, final int minElements,
+                                 final boolean optional, final boolean overridable, boolean collection, final int minElements,
                                  final int maxElements, final Object defaultValue, final boolean isCommon,
                                  final String[] mutuallyExclusive) {
             this.field = field;
@@ -1080,6 +1081,7 @@ public class CommandLineParser {
             this.shortName = shortName.toUpperCase();
             this.doc = doc;
             this.optional = optional;
+            this.overridable = overridable;
             isCollection = collection;
             this.minElements = minElements;
             this.maxElements = maxElements;

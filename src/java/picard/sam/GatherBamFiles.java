@@ -26,17 +26,18 @@ import java.util.List;
  * @author Tim Fennell
  */
 public class GatherBamFiles extends CommandLineProgram {
-    @Usage public final String USAGE = "Concatenates one or more BAM files together as efficiently as possible. Assumes that the " +
+    @Usage
+    public final String USAGE = "Concatenates one or more BAM files together as efficiently as possible. Assumes that the " +
             "list of BAM files provided as INPUT are in the order that they should be concatenated and simply concatenates the bodies " +
             "of the BAM files while retaining the header from the first file.  Operates via copying of the gzip blocks directly for speed " +
             "but also supports generation of an MD5 on the output and indexing of the output BAM file. Only support BAM files, does not " +
             "support SAM files.";
 
-    @Option(shortName=StandardOptionDefinitions.INPUT_SHORT_NAME,
-            doc="One or more BAM files or text files containing lists of BAM files one per line.")
+    @Option(shortName = StandardOptionDefinitions.INPUT_SHORT_NAME,
+            doc = "One or more BAM files or text files containing lists of BAM files one per line.")
     public List<File> INPUT;
 
-    @Option(shortName=StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc="The output BAM file to write.")
+    @Option(shortName = StandardOptionDefinitions.OUTPUT_SHORT_NAME, doc = "The output BAM file to write.")
     public File OUTPUT;
 
     private static final Log log = Log.getInstance(GatherBamFiles.class);
@@ -51,14 +52,13 @@ public class GatherBamFiles extends CommandLineProgram {
     @Override
     protected int doWork() {
         final List<File> inputs = IOUtil.unrollFiles(INPUT, BamFileIoUtils.BAM_FILE_EXTENSION, ".sam");
-        for (final File f: inputs) IOUtil.assertFileIsReadable(f);
+        for (final File f : inputs) IOUtil.assertFileIsReadable(f);
         IOUtil.assertFileIsWritable(OUTPUT);
 
         if (determineBlockCopyingStatus(inputs)) {
             BamFileIoUtils.gatherWithBlockCopying(inputs, OUTPUT, CREATE_INDEX, CREATE_MD5_FILE);
-        }
-        else {
-            gatherNormally(inputs, OUTPUT, CREATE_INDEX, CREATE_MD5_FILE, REFERENCE_FASTA);
+        } else {
+            gatherNormally(inputs, OUTPUT, CREATE_INDEX, CREATE_MD5_FILE, REFERENCE_SEQUENCE);
         }
 
         return 0;
@@ -82,7 +82,7 @@ public class GatherBamFiles extends CommandLineProgram {
                                        final File referenceFasta) {
         final SAMFileHeader header;
         {
-            final SamReader tmp = SamReaderFactory.makeDefault(referenceFasta).open(inputs.get(0));
+            final SamReader tmp = SamReaderFactory.makeDefault().referenceSequence(referenceFasta).open(inputs.get(0));
             header = tmp.getFileHeader();
             CloserUtil.close(tmp);
         }
@@ -91,7 +91,7 @@ public class GatherBamFiles extends CommandLineProgram {
 
         for (final File f : inputs) {
             log.info("Gathering " + f.getAbsolutePath());
-            final SamReader in = SamReaderFactory.makeDefault(referenceFasta).open(f);
+            final SamReader in = SamReaderFactory.makeDefault().referenceSequence(referenceFasta).open(f);
             for (final SAMRecord rec : in) out.addAlignment(rec);
             CloserUtil.close(in);
         }
