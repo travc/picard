@@ -27,6 +27,7 @@ import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.Defaults;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
@@ -345,7 +346,7 @@ public class MergeBamAlignmentTest {
                 Arrays.asList(SamPairUtil.PairOrientation.FR), SAMFileHeader.SortOrder.coordinate,
                 new BestMapqPrimaryAlignmentSelectionStrategy(), false);
 
-        merger.mergeAlignment();
+        merger.mergeAlignment(Defaults.REFERENCE_FASTA);
         Assert.assertEquals(sorted, !merger.getForceSort());
         final SAMRecordIterator it = SamReaderFactory.makeDefault().open(target).iterator();
         int aln = 0;

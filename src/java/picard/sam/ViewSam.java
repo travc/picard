@@ -76,7 +76,7 @@ public class ViewSam extends CommandLineProgram {
     int writeSamText(PrintStream printStream) {
         try {
             IOUtil.assertFileIsReadable(INPUT);
-            final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
+            final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
             final AsciiWriter writer = new AsciiWriter(printStream);
             final SAMFileHeader header = in.getFileHeader();
             if (header.getTextHeader() != null) {

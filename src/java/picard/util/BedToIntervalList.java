@@ -55,7 +55,7 @@ public class BedToIntervalList extends CommandLineProgram {
         IOUtil.assertFileIsReadable(SEQUENCE_DICTIONARY);
         IOUtil.assertFileIsWritable(OUTPUT);
         try {
-            final SamReader samReader = SamReaderFactory.makeDefault().open(SEQUENCE_DICTIONARY);
+            final SamReader samReader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(SEQUENCE_DICTIONARY);
             final SAMFileHeader header = samReader.getFileHeader();
             final IntervalList intervalList = new IntervalList(header);
             CloserUtil.close(samReader);

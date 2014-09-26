@@ -83,7 +83,7 @@ public abstract class CollectTargetedMetrics<METRIC extends MultilevelMetrics, C
         IOUtil.assertFileIsWritable(OUTPUT);
         if (PER_TARGET_COVERAGE != null) IOUtil.assertFileIsWritable(PER_TARGET_COVERAGE);
 
-        final SamReader reader = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader reader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
         final IntervalList targetIntervals = IntervalList.fromFiles(TARGET_INTERVALS);
 
         // Validate that the targets and baits have the same references as the reads file

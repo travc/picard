@@ -58,7 +58,7 @@ public class GatherBamFiles extends CommandLineProgram {
             BamFileIoUtils.gatherWithBlockCopying(inputs, OUTPUT, CREATE_INDEX, CREATE_MD5_FILE);
         }
         else {
-            gatherNormally(inputs, OUTPUT, CREATE_INDEX, CREATE_MD5_FILE);
+            gatherNormally(inputs, OUTPUT, CREATE_INDEX, CREATE_MD5_FILE, REFERENCE_FASTA);
         }
 
         return 0;
@@ -78,10 +78,11 @@ public class GatherBamFiles extends CommandLineProgram {
      * Simple implementation of a gather operations that uses SAMFileReaders and Writers in order to concatenate
      * multiple BAM files.
      */
-    private static void gatherNormally(final List<File> inputs, final File output, final boolean createIndex, final boolean createMd5) {
+    private static void gatherNormally(final List<File> inputs, final File output, final boolean createIndex, final boolean createMd5,
+                                       final File referenceFasta) {
         final SAMFileHeader header;
         {
-            final SamReader tmp = SamReaderFactory.makeDefault().open(inputs.get(0));
+            final SamReader tmp = SamReaderFactory.makeDefault(referenceFasta).open(inputs.get(0));
             header = tmp.getFileHeader();
             CloserUtil.close(tmp);
         }
@@ -90,7 +91,7 @@ public class GatherBamFiles extends CommandLineProgram {
 
         for (final File f : inputs) {
             log.info("Gathering " + f.getAbsolutePath());
-            final SamReader in = SamReaderFactory.makeDefault().open(f);
+            final SamReader in = SamReaderFactory.makeDefault(referenceFasta).open(f);
             for (final SAMRecord rec : in) out.addAlignment(rec);
             CloserUtil.close(in);
         }

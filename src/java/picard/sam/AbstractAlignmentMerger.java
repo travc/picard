@@ -102,7 +102,7 @@ public abstract class AbstractAlignmentMerger {
     private final SAMFileHeader header;
     private final List<String> attributesToRetain = new ArrayList<String>();
     private final List<String> attributesToRemove = new ArrayList<String>();
-    private final File referenceFasta;
+    protected final File referenceFasta;
     private final Integer read1BasesTrimmed;
     private final Integer read2BasesTrimmed;
     private final List<SamPairUtil.PairOrientation> expectedOrientations;
@@ -240,9 +240,9 @@ public abstract class AbstractAlignmentMerger {
     /**
      * Merges the alignment data with the non-aligned records from the source BAM file.
      */
-    public void mergeAlignment() {
+    public void mergeAlignment(final File referenceFasta) {
         // Open the file of unmapped records and write the read groups to the the header for the merged file
-        final SamReader unmappedSam = SamReaderFactory.makeDefault().open(this.unmappedBamFile);
+        final SamReader unmappedSam = SamReaderFactory.makeDefault(referenceFasta).open(this.unmappedBamFile);
 
         // Check that the program record we are going to insert is not already used in the unmapped SAM
         if (getProgramRecord() != null) {

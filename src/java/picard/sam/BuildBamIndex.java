@@ -112,11 +112,11 @@ public class BuildBamIndex extends CommandLineProgram {
 
         if (inputUrl != null) {
             // remote input
-            bam = SamReaderFactory.makeDefault().disable(SamReaderFactory.Option.EAGERLY_DECODE).open(SamInputResource.of(inputUrl));
+            bam = SamReaderFactory.makeDefault(REFERENCE_FASTA).disable(SamReaderFactory.Option.EAGERLY_DECODE).open(SamInputResource.of(inputUrl));
         } else {
             // input from a normal file
             IOUtil.assertFileIsReadable(inputFile);
-            bam = SamReaderFactory.makeDefault().open(inputFile);
+            bam = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(inputFile);
         }
 
         if (bam.type() != SamReader.Type.BAM_TYPE) {

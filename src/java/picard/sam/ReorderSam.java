@@ -92,7 +92,7 @@ public class ReorderSam extends CommandLineProgram {
         IOUtil.assertFileIsReadable(REFERENCE);
         IOUtil.assertFileIsWritable(OUTPUT);
 
-        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
 
         ReferenceSequenceFile reference = ReferenceSequenceFileFactory.getReferenceSequenceFile(REFERENCE);
         SAMSequenceDictionary refDict = reference.getSequenceDictionary();

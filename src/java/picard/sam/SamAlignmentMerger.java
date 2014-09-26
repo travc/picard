@@ -126,7 +126,7 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
             final File tmpFile = this.alignedSamFile != null && this.alignedSamFile.size() > 0
                     ? this.alignedSamFile.get(0)
                     : this.read1AlignedSamFile.get(0);
-            final SamReader tmpReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(tmpFile);
+            final SamReader tmpReader = SamReaderFactory.makeDefault(referenceFasta).validationStringency(ValidationStringency.SILENT).open(tmpFile);
             if (tmpReader.getFileHeader().getProgramRecords().size() == 1) {
                 setProgramRecord(tmpReader.getFileHeader().getProgramRecords().get(0));
             }
@@ -144,17 +144,18 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
      * that the alignment records are pre-sorted.  If not, catches the exception, forces a sort, and
      * tries again.
      */
-    public void mergeAlignment() {
+    public void mergeAlignment(final File referenceFasta) {
         try {
-            super.mergeAlignment();
+            super.mergeAlignment(referenceFasta);
         }
         catch(final IllegalStateException ise) {
             log.warn("Exception merging bam alignment - attempting to sort aligned reads and try again: ", ise.getMessage());
             forceSort = true;
             resetRefSeqFileWalker();
-            super.mergeAlignment();
+            super.mergeAlignment(referenceFasta);
         }
     }
+
     /**
      * Reads the aligned SAM records into a SortingCollection and returns an iterator over that collection
      */
@@ -168,7 +169,7 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
             final List<SAMFileHeader> headers = new ArrayList<SAMFileHeader>(alignedSamFile.size());
             final List<SamReader> readers = new ArrayList<SamReader>(alignedSamFile.size());
             for (final File f : this.alignedSamFile) {
-                final SamReader r = SamReaderFactory.makeDefault().open(f);
+                final SamReader r = SamReaderFactory.makeDefault(referenceFasta).open(f);
                 headers.add(r.getFileHeader());
                 readers.add(r);
             }
@@ -182,7 +183,7 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
         // When the ends are aligned separately and don't have firstOfPair information correctly
         // set we use this branch.
         else {
-            mergingIterator = new SeparateEndAlignmentIterator(this.read1AlignedSamFile, this.read2AlignedSamFile);
+            mergingIterator = new SeparateEndAlignmentIterator(this.read1AlignedSamFile, this.read2AlignedSamFile, referenceFasta);
             header = ((SeparateEndAlignmentIterator)mergingIterator).getHeader();
         }
 
@@ -256,17 +257,17 @@ public class SamAlignmentMerger extends AbstractAlignmentMerger {
         private final PeekableIterator<SAMRecord> read2Iterator;
         private final SAMFileHeader header;
 
-        public SeparateEndAlignmentIterator(final List<File> read1Alignments, final List<File> read2Alignments) {
+        public SeparateEndAlignmentIterator(final List<File> read1Alignments, final List<File> read2Alignments, File referenceFasta) {
             final List<SAMFileHeader> headers = new ArrayList<SAMFileHeader>();
             final List<SamReader> read1 = new ArrayList<SamReader>(read1Alignments.size());
             final List<SamReader> read2 = new ArrayList<SamReader>(read2Alignments.size());
             for (final File f : read1Alignments) {
-                final SamReader r = SamReaderFactory.makeDefault().open(f);
+                final SamReader r = SamReaderFactory.makeDefault(referenceFasta).open(f);
                 headers.add(r.getFileHeader());
                 read1.add(r);
             }
             for (final File f : read2Alignments) {
-                final SamReader r = SamReaderFactory.makeDefault().open(f);
+                final SamReader r = SamReaderFactory.makeDefault(referenceFasta).open(f);
                 headers.add(r.getFileHeader());
                 read2.add(r);
             }

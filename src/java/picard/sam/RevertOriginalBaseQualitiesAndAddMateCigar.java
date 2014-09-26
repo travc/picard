@@ -74,11 +74,12 @@ public class RevertOriginalBaseQualitiesAndAddMateCigar extends CommandLineProgr
         boolean foundPairedMappedReads = false;
 
         // Check if we can skip this file since it does not have OQ tags and the mate cigar tag is already there.
-        final CanSkipSamFile skipSamFile = RevertOriginalBaseQualitiesAndAddMateCigar.canSkipSAMFile(INPUT, MAX_RECORDS_TO_EXAMINE, RESTORE_ORIGINAL_QUALITIES);
+        final CanSkipSamFile skipSamFile = RevertOriginalBaseQualitiesAndAddMateCigar.canSkipSAMFile(INPUT, MAX_RECORDS_TO_EXAMINE,
+                RESTORE_ORIGINAL_QUALITIES, REFERENCE_FASTA);
         log.info(skipSamFile.getMessage(MAX_RECORDS_TO_EXAMINE));
         if (skipSamFile.canSkip()) return 0;
 
-        final SamReader in = SamReaderFactory.makeDefault().enable(SamReaderFactory.Option.EAGERLY_DECODE).open(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).enable(SamReaderFactory.Option.EAGERLY_DECODE).open(INPUT);
         final SAMFileHeader inHeader = in.getFileHeader();
 
         // Build the output writer based on the correct sort order
@@ -161,8 +162,9 @@ public class RevertOriginalBaseQualitiesAndAddMateCigar extends CommandLineProgr
      * @param revertOriginalBaseQualities true if we are to revert original base qualities, false otherwise
      * @return whether we can skip or not, and the explanation why.
      */
-    public static CanSkipSamFile canSkipSAMFile(final File inputFile, final int maxRecordsToExamine, boolean revertOriginalBaseQualities) {
-        final SamReader in = SamReaderFactory.makeDefault().enable(SamReaderFactory.Option.EAGERLY_DECODE).open(inputFile);
+    public static CanSkipSamFile canSkipSAMFile(final File inputFile, final int maxRecordsToExamine, boolean revertOriginalBaseQualities,
+                                                final File referenceFasta) {
+        final SamReader in = SamReaderFactory.makeDefault(referenceFasta).enable(SamReaderFactory.Option.EAGERLY_DECODE).open(inputFile);
         final Iterator<SAMRecord> iterator = in.iterator();
         int numRecordsExamined = 0;
         CanSkipSamFile returnType = CanSkipSamFile.FOUND_NO_EVIDENCE;

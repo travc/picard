@@ -135,6 +135,7 @@ public class CollectMultipleMetrics extends CommandLineProgram {
             // to just set them anyway
             instance.INPUT = INPUT;
             instance.REFERENCE_SEQUENCE = REFERENCE_SEQUENCE;
+            instance.REFERENCE_FASTA = REFERENCE_FASTA;
 
             instance.setDefaultHeaders(getDefaultHeaders());
 

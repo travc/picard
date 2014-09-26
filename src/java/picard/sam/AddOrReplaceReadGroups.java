@@ -80,7 +80,7 @@ public class AddOrReplaceReadGroups extends CommandLineProgram {
         IOUtil.assertFileIsReadable(INPUT);
         IOUtil.assertFileIsWritable(OUTPUT);
 
-        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
 
         // create the read group we'll be using
         final SAMReadGroupRecord rg = new SAMReadGroupRecord(RGID);

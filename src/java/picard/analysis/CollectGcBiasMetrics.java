@@ -119,7 +119,7 @@ public class CollectGcBiasMetrics extends CommandLineProgram {
         final long[] basesByGc  = new long[101];
         final long[] errorsByGc = new long[101];
 
-        final SamReader sam = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader sam = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
 
         if (!ASSUME_SORTED && sam.getFileHeader().getSortOrder() != SAMFileHeader.SortOrder.coordinate) {
             throw new PicardException("Header of input file " + INPUT.getAbsolutePath() + " indicates that it is not coordinate sorted.  " +

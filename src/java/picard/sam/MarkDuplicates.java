@@ -363,7 +363,7 @@ public class MarkDuplicates extends AbstractDuplicateFindingAlgorithm {
         final List<SamReader> readers = new ArrayList<SamReader>(INPUT.size());
 
         for (final File f : INPUT) {
-            final SamReader reader = SamReaderFactory.makeDefault().open(f);
+            final SamReader reader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(f);
             final SAMFileHeader header = reader.getFileHeader();
 
             if (!ASSUME_SORTED && header.getSortOrder() != SortOrder.coordinate) {

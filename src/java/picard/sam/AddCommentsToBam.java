@@ -42,7 +42,7 @@ public class AddCommentsToBam extends CommandLineProgram {
             throw new PicardException("SAM files are not supported");
         }
 
-        final SAMFileHeader samFileHeader = SamReaderFactory.makeDefault().open(INPUT).getFileHeader();
+        final SAMFileHeader samFileHeader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT).getFileHeader();
         for (final String comment : COMMENT) {
             if (comment.contains("\n")) {
                 throw new PicardException("Comments can not contain a new line");

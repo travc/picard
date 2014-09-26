@@ -53,7 +53,7 @@ public class DownsampleSam extends CommandLineProgram {
         IOUtil.assertFileIsWritable(OUTPUT);
 
         final Random r = RANDOM_SEED == null ? new Random() : new Random(RANDOM_SEED);
-        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
         final SAMFileWriter out = new SAMFileWriterFactory().makeSAMOrBAMWriter(in.getFileHeader(), true, OUTPUT);
         final Map<String,Boolean> decisions = new HashMap<String,Boolean>();
 

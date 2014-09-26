@@ -143,7 +143,7 @@ public class MarkIlluminaAdapters extends CommandLineProgram {
         IOUtil.assertFileIsReadable(INPUT);
         IOUtil.assertFileIsWritable(METRICS);
 
-        final SamReader in = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
         final SAMFileHeader.SortOrder order = in.getFileHeader().getSortOrder();
         SAMFileWriter out = null;
         if (OUTPUT != null) {

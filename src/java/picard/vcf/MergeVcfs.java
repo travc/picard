@@ -100,7 +100,7 @@ public class MergeVcfs extends CommandLineProgram {
 		VariantContextComparator variantContextComparator = null;
 		SAMSequenceDictionary sequenceDictionary = null;
 
-		if (SEQUENCE_DICTIONARY != null) sequenceDictionary = SamReaderFactory.makeDefault().open(SEQUENCE_DICTIONARY).getFileHeader().getSequenceDictionary();
+		if (SEQUENCE_DICTIONARY != null) sequenceDictionary = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(SEQUENCE_DICTIONARY).getFileHeader().getSequenceDictionary();
 
 		for (final File file : INPUT) {
 			IOUtil.assertFileIsReadable(file);

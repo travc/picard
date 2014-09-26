@@ -244,7 +244,7 @@ public class EstimateLibraryComplexity extends AbstractDuplicateFindingAlgorithm
         final ProgressLogger progress = new ProgressLogger(log, (int) 1e6, "Read");
         for (final File f : INPUT) {
             final Map<String,PairedReadSequence> pendingByName = new HashMap<String, PairedReadSequence>();
-            final SamReader in = SamReaderFactory.makeDefault().open(f);
+            final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(f);
             readGroups.addAll(in.getFileHeader().getReadGroups());
 
             for (final SAMRecord rec : in) {

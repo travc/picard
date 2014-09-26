@@ -113,7 +113,7 @@ public class FilterSamReads extends CommandLineProgram {
     private void filterReads(final FilteringIterator filteringIterator) {
 
         // get OUTPUT header from INPUT and owerwrite it if necessary
-        final SamReader inputReader = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader inputReader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
         final SAMFileHeader.SortOrder inputSortOrder = inputReader.getFileHeader().getSortOrder();
         final SAMFileHeader outputHeader = inputReader.getFileHeader();
         if (SORT_ORDER != null) {
@@ -147,7 +147,7 @@ public class FilterSamReads extends CommandLineProgram {
      *                     containing read names
      */
     private void writeReadsFile(final File samOrBamFile) throws IOException {
-        final SamReader reader = SamReaderFactory.makeDefault().open(samOrBamFile);
+        final SamReader reader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(samOrBamFile);
         final File readsFile =
             new File(OUTPUT.getParentFile(), IOUtil.basename(samOrBamFile) + ".reads");
         IOUtil.assertFileIsWritable(readsFile);
@@ -172,19 +172,19 @@ public class FilterSamReads extends CommandLineProgram {
 
             switch (FILTER) {
                 case includeAligned:
-                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault().open(INPUT).iterator(),
+                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT).iterator(),
                     new AlignedFilter(true), true));
                     break;
                 case excludeAligned:
-                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault().open(INPUT).iterator(),
+                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT).iterator(),
                     new AlignedFilter(false), true));
                     break;
                 case includeReadList:
-                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault().open(INPUT).iterator(),
+                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT).iterator(),
                     new ReadNameFilter(READ_LIST_FILE, true)));
                     break;
                 case excludeReadList:
-                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault().open(INPUT).iterator(),
+                    filterReads(new FilteringIterator(SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT).iterator(),
                     new ReadNameFilter(READ_LIST_FILE, false)));
                     break;
                 default:

@@ -99,7 +99,7 @@ public class FixMateInformation extends CommandLineProgram {
         final List<SamReader> readers = new ArrayList<SamReader>();
         for (final File f : INPUT) {
             IOUtil.assertFileIsReadable(f);
-            final SamReader reader = SamReaderFactory.makeDefault().open(f);
+            final SamReader reader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(f);
             readers.add(reader);
             if (reader.getFileHeader().getSortOrder() != SortOrder.queryname) allQueryNameSorted = false;
         }

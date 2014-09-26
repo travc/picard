@@ -73,7 +73,7 @@ public class SplitVcfs extends CommandLineProgram {
 
 		final SAMSequenceDictionary sequenceDictionary =
 				SEQUENCE_DICTIONARY != null
-						? SamReaderFactory.makeDefault().open(SEQUENCE_DICTIONARY).getFileHeader().getSequenceDictionary()
+						? SamReaderFactory.makeDefault(REFERENCE_FASTA).open(SEQUENCE_DICTIONARY).getFileHeader().getSequenceDictionary()
 						: fileHeader.getSequenceDictionary();
 		if (CREATE_INDEX && sequenceDictionary == null) {
 			throw new PicardException("A sequence dictionary must be available (either through the input file or by setting it explicitly) when creating indexed output.");

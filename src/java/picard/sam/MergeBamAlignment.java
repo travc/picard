@@ -241,7 +241,7 @@ public class MergeBamAlignment extends CommandLineProgram {
         merger.setMaxRecordsInRam(MAX_RECORDS_IN_RAM);
         merger.setKeepAlignerProperPairFlags(ALIGNER_PROPER_PAIR_FLAGS);
         merger.setIncludeSecondaryAlignments(INCLUDE_SECONDARY_ALIGNMENTS);
-        merger.mergeAlignment();
+        merger.mergeAlignment(REFERENCE_FASTA);
         merger.close();
 
         return 0;

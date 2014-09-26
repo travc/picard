@@ -83,7 +83,7 @@ public class CompareSAMs extends CommandLineProgram {
     @Override
     protected int doWork() {
         for (int i = 0; i < samFiles.size(); ++i) {
-            samReaders[i] = SamReaderFactory.makeDefault().open(samFiles.get(i));
+            samReaders[i] = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(samFiles.get(i));
         }
         areEqual = compareHeaders();
         areEqual = compareAlignments() && areEqual;

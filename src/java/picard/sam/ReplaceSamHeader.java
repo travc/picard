@@ -78,7 +78,7 @@ public class ReplaceSamHeader extends CommandLineProgram {
         IOUtil.assertFileIsReadable(HEADER);
         IOUtil.assertFileIsWritable(OUTPUT);
 
-        final SamReader headerReader = SamReaderFactory.makeDefault().open(HEADER);
+        final SamReader headerReader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(HEADER);
         final SAMFileHeader replacementHeader = headerReader.getFileHeader();
         CloserUtil.close(headerReader);
 
@@ -93,7 +93,7 @@ public class ReplaceSamHeader extends CommandLineProgram {
     }
 
     private void standardReheader(final SAMFileHeader replacementHeader) {
-        final SamReader recordReader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(INPUT);
+        final SamReader recordReader = SamReaderFactory.makeDefault(REFERENCE_FASTA).validationStringency(ValidationStringency.SILENT).open(INPUT);
         if (replacementHeader.getSortOrder() != recordReader.getFileHeader().getSortOrder()) {
             throw new PicardException("Sort orders of INPUT (" + recordReader.getFileHeader().getSortOrder().name() +
                     ") and HEADER (" + replacementHeader.getSortOrder().name() + ") do not agree.");

@@ -128,9 +128,9 @@ public class ValidateSamFile extends CommandLineProgram {
 
         boolean result;
 
-        final SamReaderFactory factory = SamReaderFactory.makeDefault()
+        final SamReaderFactory factory = SamReaderFactory.makeDefault(REFERENCE_FASTA)
                 .validationStringency(ValidationStringency.SILENT)
-                .enable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS);
+                .enable(SamReaderFactory.Option.VALIDATE_CRC_CHECKSUMS).referenceFasta(REFERENCE_FASTA);
         final SamReader samReader = factory.open(INPUT);
 
         if (samReader.type() != SamReader.Type.BAM_TYPE) VALIDATE_INDEX = false;

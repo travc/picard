@@ -141,7 +141,7 @@ public class SamToFastq extends CommandLineProgram {
 
     protected int doWork() {
         IOUtil.assertFileIsReadable(INPUT);
-        final SamReader reader = SamReaderFactory.makeDefault().open(INPUT);
+        final SamReader reader = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(INPUT);
         final Map<String, SAMRecord> firstSeenMates = new HashMap<String, SAMRecord>();
         final FastqWriterFactory factory = new FastqWriterFactory();
         factory.setCreateMd5(CREATE_MD5_FILE);

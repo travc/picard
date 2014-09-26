@@ -100,7 +100,7 @@ public class MergeSamFiles extends CommandLineProgram {
 
             for (final File inFile : INPUT) {
                 IOUtil.assertFileIsReadable(inFile);
-                final SamReader in = SamReaderFactory.makeDefault().open(inFile);
+                final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).open(inFile);
                 readers.add(in);
                 headers.add(in.getFileHeader());
 

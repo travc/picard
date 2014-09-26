@@ -27,15 +27,15 @@ package picard.sam;
 import htsjdk.samtools.BAMRecordCodec;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
 import htsjdk.samtools.SAMRecordUtil;
 import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.FilteringIterator;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
@@ -58,11 +58,9 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Reverts a SAM file by optionally restoring original quality scores and by removing
@@ -146,7 +144,7 @@ public class RevertSam extends CommandLineProgram {
         IOUtil.assertFileIsWritable(OUTPUT);
 
         final boolean sanitizing = SANITIZE;
-        final SamReader in = SamReaderFactory.makeDefault().validationStringency(VALIDATION_STRINGENCY).open(INPUT);
+        final SamReader in = SamReaderFactory.makeDefault(REFERENCE_FASTA).validationStringency(VALIDATION_STRINGENCY).open(INPUT);
         final SAMFileHeader inHeader = in.getFileHeader();
 
         // If we are going to override SAMPLE_ALIAS or LIBRARY_NAME, make sure all the read
@@ -234,7 +232,7 @@ public class RevertSam extends CommandLineProgram {
 
             // Figure out the quality score encoding scheme for each read group.
             for (final SAMReadGroupRecord rg : inHeader.getReadGroups()) {
-                final SamReader reader =  SamReaderFactory.makeDefault().validationStringency(VALIDATION_STRINGENCY).open(INPUT);
+                final SamReader reader =  SamReaderFactory.makeDefault(REFERENCE_FASTA).validationStringency(VALIDATION_STRINGENCY).open(INPUT);
                 final SamRecordFilter filter = new SamRecordFilter() {
                     public boolean filterOut(final SAMRecord rec) {
                         return !rec.getReadGroup().getId().equals(rg.getId());
