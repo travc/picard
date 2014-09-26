@@ -131,32 +131,32 @@ public abstract class AbstractAlignmentMerger {
     /**
      * Constructor
      *
-     * @param unmappedBamFile The BAM file that was used as the input to the aligner, which will
-     * include info on all the reads that did not map.  Required.
-     * @param targetBamFile The file to which to write the merged SAM records. Required.
-     * @param referenceFasta The reference sequence for the map files. Required.
-     * @param clipAdapters Whether adapters marked in unmapped BAM file should be marked as
-     * soft clipped in the merged bam. Required.
-     * @param bisulfiteSequence Whether the reads are bisulfite sequence (used when calculating the
-     * NM and UQ tags). Required.
-     * @param alignedReadsOnly Whether to output only those reads that have alignment data
-     * @param programRecord Program record for target file SAMRecords created.
-     * @param attributesToRetain private attributes from the alignment record that should be
-     * included when merging.  This overrides the exclusion of
-     * attributes whose tags start with the reserved characters
-     * of X, Y, and Z
-     * @param attributesToRemove attributes from the alignment record that should be
-     * removed when merging.  This overrides attributesToRetain if they share
-     * common tags.
-     * @param read1BasesTrimmed The number of bases trimmed from start of read 1 prior to alignment.  Optional.
-     * @param read2BasesTrimmed The number of bases trimmed from start of read 2 prior to alignment.  Optional.
-     * @param expectedOrientations A List of SamPairUtil.PairOrientations that are expected for
-     * aligned pairs.  Used to determine the properPair flag.
-     * @param sortOrder The order in which the merged records should be output.  If null,
-     * output will be coordinate-sorted
+     * @param unmappedBamFile                   The BAM file that was used as the input to the aligner, which will
+     *                                          include info on all the reads that did not map.  Required.
+     * @param targetBamFile                     The file to which to write the merged SAM records. Required.
+     * @param referenceFasta                    The reference sequence for the map files. Required.
+     * @param clipAdapters                      Whether adapters marked in unmapped BAM file should be marked as
+     *                                          soft clipped in the merged bam. Required.
+     * @param bisulfiteSequence                 Whether the reads are bisulfite sequence (used when calculating the
+     *                                          NM and UQ tags). Required.
+     * @param alignedReadsOnly                  Whether to output only those reads that have alignment data
+     * @param programRecord                     Program record for target file SAMRecords created.
+     * @param attributesToRetain                private attributes from the alignment record that should be
+     *                                          included when merging.  This overrides the exclusion of
+     *                                          attributes whose tags start with the reserved characters
+     *                                          of X, Y, and Z
+     * @param attributesToRemove                attributes from the alignment record that should be
+     *                                          removed when merging.  This overrides attributesToRetain if they share
+     *                                          common tags.
+     * @param read1BasesTrimmed                 The number of bases trimmed from start of read 1 prior to alignment.  Optional.
+     * @param read2BasesTrimmed                 The number of bases trimmed from start of read 2 prior to alignment.  Optional.
+     * @param expectedOrientations              A List of SamPairUtil.PairOrientations that are expected for
+     *                                          aligned pairs.  Used to determine the properPair flag.
+     * @param sortOrder                         The order in which the merged records should be output.  If null,
+     *                                          output will be coordinate-sorted
      * @param primaryAlignmentSelectionStrategy What to do when there are multiple primary alignments, or multiple
-     * alignments but none primary, for a read or read pair.
-     * @param addMateCigar True if we are to add or maintain the mate CIGAR (MC) tag, false if we are to remove or not include.
+     *                                          alignments but none primary, for a read or read pair.
+     * @param addMateCigar                      True if we are to add or maintain the mate CIGAR (MC) tag, false if we are to remove or not include.
      */
     public AbstractAlignmentMerger(final File unmappedBamFile, final File targetBamFile,
                                    final File referenceFasta, final boolean clipAdapters,
@@ -459,7 +459,7 @@ public abstract class AbstractAlignmentMerger {
      * Copies alignment info from aligned to unaligned read, clips as appropriate, and sets PG ID.
      *
      * @param unaligned Original SAMRecord, and object into which values are copied.
-     * @param aligned Holds alignment info that will be copied into unaligned.
+     * @param aligned   Holds alignment info that will be copied into unaligned.
      */
     private void transferAlignmentInfoToFragment(final SAMRecord unaligned, final SAMRecord aligned) {
         setValuesFromAlignment(unaligned, aligned);
@@ -475,10 +475,10 @@ public abstract class AbstractAlignmentMerger {
     /**
      * Copies alignment info from aligned to unaligned read, if there is an alignment, and sets mate information.
      *
-     * @param firstUnaligned Original first of pair, into which alignment and pair info will be written.
+     * @param firstUnaligned  Original first of pair, into which alignment and pair info will be written.
      * @param secondUnaligned Original second of pair, into which alignment and pair info will be written.
-     * @param firstAligned Aligned first of pair, or null if no alignment.
-     * @param secondAligned Aligned second of pair, or null if no alignment.
+     * @param firstAligned    Aligned first of pair, or null if no alignment.
+     * @param secondAligned   Aligned second of pair, or null if no alignment.
      */
     private void transferAlignmentInfoToPairedRead(final SAMRecord firstUnaligned, final SAMRecord secondUnaligned, final SAMRecord firstAligned, final SAMRecord secondAligned) {
         if (firstAligned != null) transferAlignmentInfoToFragment(firstUnaligned, firstAligned);
@@ -532,7 +532,7 @@ public abstract class AbstractAlignmentMerger {
      * preserves all data from the unaligned record (ReadGroup, NoiseRead status, etc)
      * and adds all the alignment info
      *
-     * @param rec The unaligned read record
+     * @param rec       The unaligned read record
      * @param alignment The alignment record
      */
     protected void setValuesFromAlignment(final SAMRecord rec, final SAMRecord alignment) {

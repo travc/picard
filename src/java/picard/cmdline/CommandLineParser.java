@@ -50,10 +50,10 @@ import java.util.Set;
 
 /**
  * Annotation-driven utility for parsing command-line arguments, checking for errors, and producing usage message.
- *
+ * <p/>
  * This class supports options of the form KEY=VALUE, plus positional arguments.  Positional arguments must not contain
  * an equal sign lest they be mistaken for a KEY=VALUE pair.
- *
+ * <p/>
  * The caller must supply an object that both defines the command line and has the parsed options set into it.
  * For each possible KEY=VALUE option, there must be a public data member annotated with @Option.  The KEY name is
  * the name of the data member.  An abbreviated name may also be specified with the shortName attribute of @Option.
@@ -62,12 +62,12 @@ import java.util.Set;
  * be initialized by the caller with some kind of list.  Any other option that is non-null is assumed to have the given
  * value as a default.  If an option has no default value, and does not have the optional attribute of @Option set,
  * is required.  For List options, minimum and maximum number of elements may be specified in the @Option annotation.
- *
+ * <p/>
  * A single List data member may be annotated with the @PositionalArguments.  This behaves similarly to a Option
  * with List data member: the caller must initialize the data member, the type must be constructable from String, and
  * min and max number of elements may be specified.  If no @PositionalArguments annotation appears in the object,
  * then it is an error for the command line to contain positional arguments.
- *
+ * <p/>
  * A single String public data member may be annotated with @Usage.  This string, if present, is used to
  * construct the usage message.  Details about the possible options are automatically appended to this string.
  * If @Usage does not appear, a boilerplate usage message is used.
@@ -102,7 +102,7 @@ public class CommandLineParser {
     /**
      * A typical command line program will call this to get the beginning of the usage message,
      * and then append a description of the program, like this:
-     *
+     * <p/>
      * \@Usage
      * public String USAGE = CommandLineParser.getStandardUsagePreamble(getClass()) + "Frobnicates the freebozzle."
      */
@@ -114,13 +114,14 @@ public class CommandLineParser {
                         : "");
     }
 
-    /***
+    /**
      * Determines if a class has web documentation based on its package name
+     *
      * @param clazz
      * @return true if the class has web documentation, false otherwise
      */
     public static boolean hasWebDocumentation(final Class clazz) {
-        for(final String pkg : PACKAGES_WITH_WEB_DOCUMENTATION) {
+        for (final String pkg : PACKAGES_WITH_WEB_DOCUMENTATION) {
             if (clazz.getPackage().getName().startsWith(pkg)) {
                 return true;
             }
@@ -128,7 +129,7 @@ public class CommandLineParser {
         return false;
     }
 
-    /***
+    /**
      * @return the link to a FAQ
      */
     public static String getFaqLink() {
@@ -207,8 +208,9 @@ public class CommandLineParser {
 
     /**
      * Prepare for parsing command line arguments, by validating annotations.
+     *
      * @param callerOptions This object contains annotations that define the acceptable command-line options,
-     * and ultimately will receive the settings when a command line is parsed.
+     *                      and ultimately will receive the settings when a command line is parsed.
      */
     public CommandLineParser(final Object callerOptions) {
         this(callerOptions, "");
@@ -221,8 +223,11 @@ public class CommandLineParser {
         this.callerOptions = callerOptions;
 
         this.prefix = prefix;
-        if (prefix.isEmpty()) {prefixDot = "";}
-        else {prefixDot = prefix + ".";}
+        if (prefix.isEmpty()) {
+            prefixDot = "";
+        } else {
+            prefixDot = prefix + ".";
+        }
 
 
         for (final Field field : getAllFields(this.callerOptions.getClass())) {
@@ -264,12 +269,13 @@ public class CommandLineParser {
         return ret;
     }
 
-    public String getVersion()  {
+    public String getVersion() {
         return this.callerOptions.getClass().getPackage().getImplementationVersion();
     }
-    
+
     /**
      * Print a usage message based on the options object passed to the ctor.
+     *
      * @param stream Where to write the usage message.
      */
     public void usage(final PrintStream stream, final boolean printCommon) {
@@ -285,11 +291,11 @@ public class CommandLineParser {
 
         if (!optionDefinitions.isEmpty()) {
             for (final OptionDefinition optionDefinition : optionDefinitions) {
-                if(printCommon || !optionDefinition.isCommon) printOptionUsage(stream, optionDefinition);
+                if (printCommon || !optionDefinition.isCommon) printOptionUsage(stream, optionDefinition);
             }
         }
 
-        if(printCommon) {
+        if (printCommon) {
             final Field fileField;
             try {
                 fileField = getClass().getField("IGNORE_THIS_PROPERTY");
@@ -297,12 +303,12 @@ public class CommandLineParser {
                 throw new PicardException("Should never happen", e);
             }
             final OptionDefinition optionsFileOptionDefinition =
-              new OptionDefinition(fileField, OPTIONS_FILE, "",
-                "File of OPTION_NAME=value pairs.  No positional parameters allowed.  Unlike command-line options, " +
-                "unrecognized options are ignored.  " + "A single-valued option set in an options file may be overridden " +
-                "by a subsequent command-line option.  " +
-                "A line starting with '#' is considered a comment.",
-                      false, true, false, 0, Integer.MAX_VALUE, null, true, new String[0]);
+                    new OptionDefinition(fileField, OPTIONS_FILE, "",
+                            "File of OPTION_NAME=value pairs.  No positional parameters allowed.  Unlike command-line options, " +
+                                    "unrecognized options are ignored.  " + "A single-valued option set in an options file may be overridden " +
+                                    "by a subsequent command-line option.  " +
+                                    "A line starting with '#' is considered a comment.",
+                            false, true, false, 0, Integer.MAX_VALUE, null, true, new String[0]);
             printOptionUsage(stream, optionsFileOptionDefinition);
         }
 
@@ -319,7 +325,7 @@ public class CommandLineParser {
         if (isCommandLineProgram()) {
             childClps = new ArrayList<CommandLineParser>();
             for (final Map.Entry<String, Object> entry :
-                    ((CommandLineProgram)callerOptions).getNestedOptionsForHelp().entrySet()) {
+                    ((CommandLineProgram) callerOptions).getNestedOptionsForHelp().entrySet()) {
                 if (entry.getKey().contains(".")) {
                     throw new IllegalArgumentException("Prefix for nested options should not contain period: " + entry.getKey());
                 }
@@ -365,7 +371,6 @@ public class CommandLineParser {
     }
 
     /**
-     *
      * @param stream
      * @param printCommon
      */
@@ -390,8 +395,9 @@ public class CommandLineParser {
 
     /**
      * Parse command-line options, and store values in callerOptions object passed to ctor.
+     *
      * @param messageStream Where to write error messages.
-     * @param args Command line tokens.
+     * @param args          Command line tokens.
      * @return true if command line is valid.
      */
     public boolean parseOptions(final PrintStream messageStream, final String[] args) {
@@ -415,7 +421,7 @@ public class CommandLineParser {
                 messageStream.println(getVersion());
                 return false;
             }
-            
+
 
             final String[] pair = arg.split("=", 2);
             if (pair.length == 2 && pair[1].length() == 0) {
@@ -454,6 +460,7 @@ public class CommandLineParser {
     /**
      * After command line has been parsed, make sure that all required options have values, and that
      * lists with minimum # of elements have sufficient.
+     *
      * @return true if valid
      */
     private boolean checkNumArguments() {
@@ -476,10 +483,10 @@ public class CommandLineParser {
                     return false;
                 }
                 if (optionDefinition.isCollection) {
-                    final Collection c = (Collection)optionDefinition.field.get(callerOptions);
+                    final Collection c = (Collection) optionDefinition.field.get(callerOptions);
                     if (c.size() < optionDefinition.minElements) {
                         messageStream.println("ERROR: Option '" + fullName + "' must be specified at least " +
-                        optionDefinition.minElements + " times.");
+                                optionDefinition.minElements + " times.");
                         return false;
                     }
                 } else if (!optionDefinition.optional && !optionDefinition.hasBeenSet &&
@@ -496,19 +503,19 @@ public class CommandLineParser {
 
             }
             if (positionalArguments != null) {
-                final Collection c = (Collection)positionalArguments.get(callerOptions);
+                final Collection c = (Collection) positionalArguments.get(callerOptions);
                 if (c.size() < minPositionalArguments) {
                     messageStream.println("ERROR: At least " + minPositionalArguments +
                             " positional arguments must be specified.");
                     return false;
                 }
-                for( final Object posArg : c ) {
+                for (final Object posArg : c) {
                     commandLineString.append(" " + posArg.toString());
                 }
             }
             //first, append args that were explicitly set
             for (final OptionDefinition optionDefinition : optionDefinitions) {
-                if(optionDefinition.hasBeenSet) {
+                if (optionDefinition.hasBeenSet) {
                     commandLineString.append(" " + prefixDot + optionDefinition.name + "=" +
                             optionDefinition.field.get(callerOptions));
                 }
@@ -516,7 +523,7 @@ public class CommandLineParser {
             commandLineString.append("   "); //separator to tell the 2 apart
             //next, append args that weren't explicitly set, but have a default value
             for (final OptionDefinition optionDefinition : optionDefinitions) {
-                if(!optionDefinition.hasBeenSet && !optionDefinition.defaultValue.equals("null")) {
+                if (!optionDefinition.hasBeenSet && !optionDefinition.defaultValue.equals("null")) {
                     commandLineString.append(" " + prefixDot + optionDefinition.name + "=" +
                             optionDefinition.defaultValue);
                 }
@@ -545,7 +552,7 @@ public class CommandLineParser {
         }
         final Collection c;
         try {
-            c = (Collection)positionalArguments.get(callerOptions);
+            c = (Collection) positionalArguments.get(callerOptions);
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
@@ -566,7 +573,7 @@ public class CommandLineParser {
                                 boolean precedenceSet) {
         key = key.toUpperCase();
         if (key.equals(OPTIONS_FILE)) {
-            commandLine += " " + prefix +  OPTIONS_FILE + "=" + stringValue;
+            commandLine += " " + prefix + OPTIONS_FILE + "=" + stringValue;
             return parseOptionsFile(stringValue);
         }
 
@@ -580,7 +587,7 @@ public class CommandLineParser {
         final Integer prefixIndex = key.indexOf('.');
         if (prefixIndex != -1) {
             final String prefix = key.substring(0, prefixIndex);
-            final String subKey = key.substring(prefixIndex+1);
+            final String subKey = key.substring(prefixIndex + 1);
             if (!subKey.isEmpty()) {
                 childOptionArguments.append(prefix, new ChildOptionArg(subKey, stringValue, optionsFile,
                         precedenceSet));
@@ -604,8 +611,7 @@ public class CommandLineParser {
         // Check to see if the option has been "fixed" already
         if (this.optionsThatCannotBeOverridden.contains(optionDefinition.name)) {
             return true;
-        }
-        else if (precedenceSet) {
+        } else if (precedenceSet) {
             this.optionsThatCannotBeOverridden.add(optionDefinition.name);
         }
 
@@ -614,14 +620,14 @@ public class CommandLineParser {
                 messageStream.println("ERROR: Option '" + key + "' cannot be specified more than once.");
                 return false;
             }
-        }                                      
+        }
         final Object value;
         try {
-            if(stringValue.equals("null")) {
+            if (stringValue.equals("null")) {
                 //"null" is a special value that allows the user to override any default
                 //value set for this arg. It can only be used for optional args. When
                 //used for a list arg, it will clear the list.
-                if(optionDefinition.optional) {
+                if (optionDefinition.optional) {
                     value = null;
                 } else {
                     messageStream.println("ERROR: non-null value must be provided for '" + key + "'.");
@@ -637,8 +643,8 @@ public class CommandLineParser {
         }
         try {
             if (optionDefinition.isCollection) {
-                final Collection c = (Collection)optionDefinition.field.get(callerOptions);
-                if(value == null) {
+                final Collection c = (Collection) optionDefinition.field.get(callerOptions);
+                if (value == null) {
                     //user specified this arg=null which is interpreted as empty list
                     c.clear();
                 } else if (c.size() >= optionDefinition.maxElements) {
@@ -667,6 +673,7 @@ public class CommandLineParser {
      * ignored, and a single-valued option that is set in a file may be overridden by a
      * subsequent appearance of that option.
      * A line that starts with '#' is ignored.
+     *
      * @param optionsFile
      * @return false if a fatal error occurred
      */
@@ -711,21 +718,21 @@ public class CommandLineParser {
 
     private void printOptionUsage(final PrintStream stream, final OptionDefinition optionDefinition) {
         printOptionParamUsage(stream, optionDefinition.name, optionDefinition.shortName,
-                              getUnderlyingType(optionDefinition.field).getSimpleName(),
-                              makeOptionDescription(optionDefinition));
+                getUnderlyingType(optionDefinition.field).getSimpleName(),
+                makeOptionDescription(optionDefinition));
     }
 
 
     private void printOptionParamUsage(final PrintStream stream, final String name, final String shortName,
                                        final String type, final String optionDescription) {
         String optionLabel = prefixDot + name;
-        if(type != null) optionLabel += "=" + type;
+        if (type != null) optionLabel += "=" + type;
 
         stream.print(optionLabel);
         if (shortName != null && shortName.length() > 0) {
             stream.println();
             optionLabel = prefixDot + shortName;
-            if(type != null) optionLabel += "=" + type;
+            if (type != null) optionLabel += "=" + type;
             stream.print(optionLabel);
         }
 
@@ -756,10 +763,10 @@ public class CommandLineParser {
             sb.append("Default value: ");
             sb.append(optionDefinition.defaultValue);
             sb.append(". ");
-            if(!optionDefinition.defaultValue.equals("null")) {
+            if (!optionDefinition.defaultValue.equals("null")) {
                 sb.append("This option can be set to 'null' to clear the default value. ");
             }
-        } else if (!optionDefinition.isCollection){
+        } else if (!optionDefinition.isCollection) {
             sb.append("Required. ");
         }
         Object[] enumConstants = getUnderlyingType(optionDefinition.field).getEnumConstants();
@@ -768,19 +775,19 @@ public class CommandLineParser {
         }
 
         if (enumConstants != null) {
-            final Boolean isClpEnum=enumConstants.length>0 && (enumConstants[0] instanceof ClpEnum) ;
+            final Boolean isClpEnum = enumConstants.length > 0 && (enumConstants[0] instanceof ClpEnum);
 
             sb.append("Possible values: {");
-            if(isClpEnum) sb.append("\n");
+            if (isClpEnum) sb.append("\n");
 
             for (int i = 0; i < enumConstants.length; ++i) {
-                if (i > 0 && ! isClpEnum) {
+                if (i > 0 && !isClpEnum) {
                     sb.append(", ");
                 }
                 sb.append(enumConstants[i].toString());
 
-                if(isClpEnum){
-                    sb.append(" (" + ((ClpEnum)enumConstants[i]).getHelpDoc() + ")\n");
+                if (isClpEnum) {
+                    sb.append(" (" + ((ClpEnum) enumConstants[i]).getHelpDoc() + ")\n");
                 }
             }
             sb.append("} ");
@@ -793,14 +800,14 @@ public class CommandLineParser {
                     sb.append("This option must be specified no more than " + optionDefinition.maxElements +
                             " times. ");
                 }
-            } else  if (optionDefinition.maxElements == Integer.MAX_VALUE) {
+            } else if (optionDefinition.maxElements == Integer.MAX_VALUE) {
                 sb.append("This option must be specified at least " + optionDefinition.minElements + " times. ");
             } else {
                 sb.append("This option may be specified between " + optionDefinition.minElements +
-                " and " + optionDefinition.maxElements + " times. ");
+                        " and " + optionDefinition.maxElements + " times. ");
             }
 
-            if(!optionDefinition.defaultValue.equals("null")) {
+            if (!optionDefinition.defaultValue.equals("null")) {
                 sb.append("This option can be set to 'null' to clear the default list. ");
             }
 
@@ -810,7 +817,7 @@ public class CommandLineParser {
             for (final String option : optionDefinition.mutuallyExclusive) {
                 final OptionDefinition mutextOptionDefinition = optionMap.get(option);
 
-                if(mutextOptionDefinition == null) {
+                if (mutextOptionDefinition == null) {
                     throw new PicardException("Invalid option definition in source code.  " + option +
                             " doesn't match any known option.");
                 }
@@ -840,7 +847,7 @@ public class CommandLineParser {
             if (isCollection) {
                 if (optionAnnotation.maxElements() == 0) {
                     throw new CommandLineParserDefinitionException("@Option member " + field.getName() +
-                    "has maxElements = 0");
+                            "has maxElements = 0");
                 }
                 if (optionAnnotation.minElements() > optionAnnotation.maxElements()) {
                     throw new CommandLineParserDefinitionException("In @Option member " + field.getName() +
@@ -852,7 +859,7 @@ public class CommandLineParser {
             }
             if (!canBeMadeFromString(getUnderlyingType(field))) {
                 throw new CommandLineParserDefinitionException("@Option member " + field.getName() +
-                " must have a String ctor or be an enum");
+                        " must have a String ctor or be an enum");
             }
 
             final OptionDefinition optionDefinition = new OptionDefinition(field,
@@ -860,7 +867,7 @@ public class CommandLineParser {
                     optionAnnotation.shortName(),
                     optionAnnotation.doc(), optionAnnotation.optional() || (field.get(callerOptions) != null),
                     optionAnnotation.overridable(), isCollection, optionAnnotation.minElements(),
-                    optionAnnotation.maxElements(), field.get(callerOptions),  optionAnnotation.common(),
+                    optionAnnotation.maxElements(), field.get(callerOptions), optionAnnotation.common(),
                     optionAnnotation.mutex());
 
             for (final String option : optionAnnotation.mutex()) {
@@ -894,7 +901,7 @@ public class CommandLineParser {
         }
         try {
             field.setAccessible(true);
-            usagePreamble = (String)field.get(callerOptions);
+            usagePreamble = (String) field.get(callerOptions);
             final Usage usageAnnotation = field.getAnnotation(Usage.class);
             if (usageAnnotation.programVersion().length() > 0) {
                 this.programVersion = usageAnnotation.programVersion();
@@ -921,7 +928,7 @@ public class CommandLineParser {
 
         if (!canBeMadeFromString(getUnderlyingType(field))) {
             throw new CommandLineParserDefinitionException("@PositionalParameters member " + field.getName() +
-            "does not have a String ctor");
+                    "does not have a String ctor");
         }
 
         final PositionalArguments positionalArgumentsAnnotation = field.getAnnotation(PositionalArguments.class);
@@ -969,8 +976,8 @@ public class CommandLineParser {
                 field.set(callerOptions, new ArrayList());
             } catch (IllegalArgumentException e) {
                 throw new CommandLineParserDefinitionException("In collection " + annotationType +
-                  " member " + field.getName() +
-                  " cannot be constructed or auto-initialized with ArrayList, so collection must be initialized explicitly.");
+                        " member " + field.getName() +
+                        " cannot be constructed or auto-initialized with ArrayList, so collection must be initialized explicitly.");
             }
 
         }
@@ -984,23 +991,22 @@ public class CommandLineParser {
      */
     private Class getUnderlyingType(final Field field) {
         if (isCollectionField(field)) {
-            final ParameterizedType clazz = (ParameterizedType)(field.getGenericType());
+            final ParameterizedType clazz = (ParameterizedType) (field.getGenericType());
             final Type[] genericTypes = clazz.getActualTypeArguments();
             if (genericTypes.length != 1) {
                 throw new CommandLineParserDefinitionException("Strange collection type for field " +
                         field.getName());
             }
-            return (Class)genericTypes[0];
+            return (Class) genericTypes[0];
 
-        }
-        else {
+        } else {
             final Class type = field.getType();
-            if (type == Byte.TYPE)    return Byte.class;
-            if (type == Short.TYPE)   return Short.class;
+            if (type == Byte.TYPE) return Byte.class;
+            if (type == Short.TYPE) return Short.class;
             if (type == Integer.TYPE) return Integer.class;
-            if (type == Long.TYPE)    return Long.class;
-            if (type == Float.TYPE)   return Float.class;
-            if (type == Double.TYPE)  return Double.class;
+            if (type == Long.TYPE) return Long.class;
+            if (type == Float.TYPE) return Float.class;
+            if (type == Double.TYPE) return Double.class;
             if (type == Boolean.TYPE) return Boolean.class;
 
             return type;
@@ -1051,7 +1057,7 @@ public class CommandLineParser {
         return argv;
     }
 
-    public interface ClpEnum{
+    public interface ClpEnum {
         String getHelpDoc();
     }
 
@@ -1086,11 +1092,10 @@ public class CommandLineParser {
             this.minElements = minElements;
             this.maxElements = maxElements;
             if (defaultValue != null) {
-                if( isCollection && ((Collection) defaultValue).isEmpty()) {
+                if (isCollection && ((Collection) defaultValue).isEmpty()) {
                     //treat empty collections the same as uninitialized primitive types
                     this.defaultValue = "null";
-                }
-                else {
+                } else {
                     //this is an intialized primitive type or a non-empty collection
                     this.defaultValue = defaultValue.toString();
                 }
@@ -1123,6 +1128,7 @@ public class CommandLineParser {
      * Propagate options from parent to children as appropriate, parse command line options for
      * children, and then validate that children have been properly initialized.  This is done recursively
      * for any child that itself has a child.
+     *
      * @return true if parsing is successful.  Writes any errors to the message stream.
      */
     private boolean parseChildOptions() {
@@ -1130,7 +1136,7 @@ public class CommandLineParser {
         // If callerOptions is not an instance of CommandLineProgram, then the child options are populated
         // when annotations are processed.
         if (isCommandLineProgram()) {
-            final CommandLineProgram commandLineProgram = (CommandLineProgram)callerOptions;
+            final CommandLineProgram commandLineProgram = (CommandLineProgram) callerOptions;
             for (final Map.Entry<String, Object> entry : commandLineProgram.getNestedOptions().entrySet()) {
                 if (entry.getKey().contains(".")) {
                     throw new IllegalArgumentException("Prefix for nested options should not contain period: " + entry.getKey());
@@ -1212,7 +1218,7 @@ public class CommandLineParser {
     /**
      * The commandline used to run this program, including any default args that
      * weren't necessarily specified. This is used for logging and debugging.
-     *
+     * <p/>
      * NOTE: {@link #parseOptions(PrintStream, String[])} must be called before
      * calling this method.
      *

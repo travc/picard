@@ -157,8 +157,8 @@ public class RevertOriginalBaseQualitiesAndAddMateCigar extends CommandLineProgr
     /**
      * Checks if we can skip the SAM/BAM file when reverting origin base qualities and adding mate cigars.
      *
-     * @param inputFile the SAM/BAM input file
-     * @param maxRecordsToExamine the maximum number of records to examine before quitting
+     * @param inputFile                   the SAM/BAM input file
+     * @param maxRecordsToExamine         the maximum number of records to examine before quitting
      * @param revertOriginalBaseQualities true if we are to revert original base qualities, false otherwise
      * @return whether we can skip or not, and the explanation why.
      */

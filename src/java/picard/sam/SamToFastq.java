@@ -314,11 +314,11 @@ public class SamToFastq extends CommandLineProgram {
      * Utility method to handle the changes required to the base/quality strings by the clipping
      * parameters.
      *
-     * @param src The string to clip
-     * @param point The 1-based position of the first clipped base in the read
+     * @param src         The string to clip
+     * @param point       The 1-based position of the first clipped base in the read
      * @param replacement If non-null, the character to replace in the clipped positions
-     * in the string (a quality score or 'N').  If null, just trim src
-     * @param posStrand Whether the read is on the positive strand
+     *                    in the string (a quality score or 'N').  If null, just trim src
+     * @param posStrand   Whether the read is on the positive strand
      * @return String       The clipped read or qualities
      */
     private String clip(final String src, final int point, final Character replacement, final boolean posStrand) {

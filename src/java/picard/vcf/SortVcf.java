@@ -133,7 +133,7 @@ public class SortVcf extends CommandLineProgram {
      * Here, we are assuming inputs are unsorted, and so adding their VariantContexts iteratively is fine for now.
      * MergeVcfs exists for simple merging of presorted inputs.
      *
-     * @param readers - a list of VCFFileReaders, one for each input VCF
+     * @param readers      - a list of VCFFileReaders, one for each input VCF
      * @param outputHeader - The merged header whose information we intend to use in the final output file
      */
     private SortingCollection<VariantContext> sortInputs(final List<VCFFileReader> readers, final VCFHeader outputHeader) {

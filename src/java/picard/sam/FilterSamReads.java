@@ -144,7 +144,7 @@ public class FilterSamReads extends CommandLineProgram {
      * Write out a file of read names for debugging purposes.
      *
      * @param samOrBamFile The SAM or BAM file for which we are going to write out a file of its
-     * containing read names
+     *                     containing read names
      */
     private void writeReadsFile(final File samOrBamFile) throws IOException {
         final SamReader reader = SamReaderFactory.makeDefault().referenceSequence(REFERENCE_SEQUENCE).open(samOrBamFile);
